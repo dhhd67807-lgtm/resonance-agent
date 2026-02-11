@@ -32,8 +32,17 @@ jobs:
       
       - name: Install dependencies
         working-directory: void-editor
-        run: |
-          npm ci
+        env:
+          SHELL: /bin/bash
+          npm_config_shell: /bin/bash
+        run: npm ci --ignore-scripts
+        shell: bash
+      
+      - name: Run postinstall manually
+        working-directory: void-editor
+        env:
+          SHELL: /bin/bash
+        run: node build/npm/postinstall.js || true
         shell: bash
         
       - name: Build macOS ARM64
@@ -73,7 +82,17 @@ jobs:
       
       - name: Install dependencies
         working-directory: void-editor
-        run: npm ci
+        env:
+          SHELL: /bin/bash
+          npm_config_shell: /bin/bash
+        run: npm ci --ignore-scripts
+        shell: bash
+      
+      - name: Run postinstall manually
+        working-directory: void-editor
+        env:
+          SHELL: /bin/bash
+        run: node build/npm/postinstall.js || true
         shell: bash
       
       - name: Build Windows x64
