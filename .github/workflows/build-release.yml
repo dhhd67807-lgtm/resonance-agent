@@ -19,6 +19,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 1
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -29,11 +32,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
-      - name: Configure Git
-        run: |
-          git config --global user.email "github-actions@github.com"
-          git config --global user.name "GitHub Actions"
       
       - name: Install dependencies
         working-directory: void-editor
@@ -92,6 +90,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 1
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -102,11 +103,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
-      - name: Configure Git
-        run: |
-          git config --global user.email "github-actions@github.com"
-          git config --global user.name "GitHub Actions"
       
       - name: Install dependencies
         working-directory: void-editor
