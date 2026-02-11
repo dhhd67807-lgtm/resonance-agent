@@ -147,7 +147,7 @@ export class LLMMessageChannel implements IServerChannel {
 			onError: (p) => { emitters.error.fire({ requestId, ...p }); },
 		}
 		const implementation = sendLLMMessageToProviderImplementation[providerName];
-		if (implementation?.list) {
+		if (implementation && implementation.list) {
 			implementation.list(mainThreadParams);
 		}
 	}

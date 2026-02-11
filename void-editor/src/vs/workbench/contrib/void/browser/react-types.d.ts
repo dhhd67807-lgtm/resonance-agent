@@ -2,12 +2,35 @@
  *  Type declarations for React component outputs
  *--------------------------------------------------------------------------------------*/
 
-// Export types for React components
-export const mountSidebar: any;
-export const mountQuickEdit: any;
-export const mountVoidOnboarding: any;
-export const mountVoidSettings: any;
-export const mountVoidCommandBar: any;
-export const mountVoidSelectionHelper: any;
-export const mountVoidTooltip: any;
-export const findDiffs: any;
+// These are imported from the built React bundle
+declare module 'vs/workbench/contrib/void/browser/react/out/sidebar' {
+	export const mountSidebar: any;
+}
+
+declare module 'vs/workbench/contrib/void/browser/react/out/quickEdit' {
+	export const mountQuickEdit: any;
+}
+
+declare module 'vs/workbench/contrib/void/browser/react/out/voidOnboarding' {
+	export const mountVoidOnboarding: any;
+}
+
+declare module 'vs/workbench/contrib/void/browser/react/out/voidSettings' {
+	export const mountVoidSettings: any;
+}
+
+declare module 'vs/workbench/contrib/void/browser/react/out/voidCommandBar' {
+	export const mountVoidCommandBar: any;
+}
+
+declare module 'vs/workbench/contrib/void/browser/react/out/voidSelectionHelper' {
+	export const mountVoidSelectionHelper: any;
+}
+
+declare module 'vs/workbench/contrib/void/browser/react/out/voidTooltip' {
+	export const mountVoidTooltip: any;
+}
+
+declare module 'vs/workbench/contrib/void/browser/react/out/util/findDiffs' {
+	export const findDiffs: any;
+}
