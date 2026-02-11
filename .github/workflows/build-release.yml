@@ -26,18 +26,13 @@ jobs:
           node-version: '18'
       
       - name: Install dependencies
-        run: |
-          cd void-editor
-          yarn install --frozen-lockfile
+        run: yarn install --frozen-lockfile
         
       - name: Build macOS ARM64
-        run: |
-          cd void-editor
-          yarn gulp vscode-darwin-arm64-min
+        run: yarn gulp vscode-darwin-arm64-min
       
       - name: Create DMG
-        run: |
-          hdiutil create -volname "Resonance" -srcfolder void-editor/.build/electron/Resonance.app -ov -format UDZO Resonance-darwin-arm64.dmg
+        run: hdiutil create -volname "Resonance" -srcfolder .build/electron/Resonance.app -ov -format UDZO Resonance-darwin-arm64.dmg
       
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
@@ -59,20 +54,16 @@ jobs:
           node-version: '18'
       
       - name: Install dependencies
-        run: |
-          cd void-editor
-          yarn install --frozen-lockfile
+        run: yarn install --frozen-lockfile
       
       - name: Build Windows x64
-        run: |
-          cd void-editor
-          yarn gulp vscode-win32-x64-inno-updater
+        run: yarn gulp vscode-win32-x64-inno-updater
       
       - name: Find installer
         id: find-installer
         shell: bash
         run: |
-          INSTALLER=$(find void-editor/.build -name "*Setup.exe" | head -1)
+          INSTALLER=$(find .build -name "*Setup.exe" | head -1)
           echo "installer=$INSTALLER" >> $GITHUB_OUTPUT
           echo "Found installer: $INSTALLER"
       
