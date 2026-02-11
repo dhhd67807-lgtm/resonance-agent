@@ -298,7 +298,6 @@ export class TerminalToolService extends Disposable implements ITerminalToolServ
 			this.terminalService.setActiveInstance(terminal)
 			await this.terminalService.focusActiveInstance()
 			
-			let result: string = ''
 			let resolveReason: TerminalResolveReason | undefined
 
 

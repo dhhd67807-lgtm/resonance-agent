@@ -89,7 +89,8 @@ export function enforceToolCall(fullText: string, chatMode: string | null): RawT
 					name: toolName,
 					rawParams: params,
 					doneParams: Object.keys(params),
-					id: generateUuid()
+					id: generateUuid(),
+					isDone: false
 				};
 			} catch (e) {
 				console.warn('[VOID DEBUG] Tool call enforcer failed to extract params:', e);
