@@ -49,6 +49,11 @@ jobs:
           SHELL: /bin/bash
         run: node build/npm/postinstall.js || true
         shell: bash
+      
+      - name: Install extension dependencies
+        working-directory: void-editor/extensions/open-remote-ssh
+        run: npm install
+        shell: bash
         
       - name: Build React components
         working-directory: void-editor
@@ -116,6 +121,11 @@ jobs:
         env:
           SHELL: /bin/bash
         run: node build/npm/postinstall.js || true
+        shell: bash
+      
+      - name: Install extension dependencies
+        working-directory: void-editor/extensions/open-remote-ssh
+        run: npm install
         shell: bash
       
       - name: Build React components
