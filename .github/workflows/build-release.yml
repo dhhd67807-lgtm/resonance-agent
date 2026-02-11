@@ -27,11 +27,11 @@ jobs:
       
       - name: Install dependencies
         working-directory: void-editor
-        run: yarn install --frozen-lockfile
+        run: npm ci
         
       - name: Build macOS ARM64
         working-directory: void-editor
-        run: yarn gulp vscode-darwin-arm64-min
+        run: npm run gulp -- vscode-darwin-arm64-min
       
       - name: Create DMG
         working-directory: void-editor
@@ -61,11 +61,11 @@ jobs:
       
       - name: Install dependencies
         working-directory: void-editor
-        run: yarn install --frozen-lockfile
+        run: npm ci
       
       - name: Build Windows x64
         working-directory: void-editor
-        run: yarn gulp vscode-win32-x64-inno-updater
+        run: npm run gulp -- vscode-win32-x64-inno-updater
       
       - name: Find installer
         id: find-installer
