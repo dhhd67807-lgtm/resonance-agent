@@ -47,20 +47,29 @@ jobs:
         
       - name: Build macOS ARM64
         working-directory: void-editor
-        run: npm run gulp -- vscode-darwin-arm64-min
+        run: |
+          npm run compile
+          npm run gulp -- vscode-darwin-arm64
       
-      - name: Create DMG
+      - name: Package macOS app
         working-directory: void-editor
-        run: hdiutil create -volname "Resonance" -srcfolder .build/electron/Resonance.app -ov -format UDZO Resonance-darwin-arm64.dmg
-      
-      - name: Move DMG to root
-        run: mv void-editor/Resonance-darwin-arm64.dmg .
+        run: |
+          if [ -d ".build/darwin/Resonance.app" ]; then
+            cd .build/darwin
+            zip -r ../../Resonance-darwin-arm64.zip Resonance.app
+          elif [ -d "../VSCode-darwin-arm64/Resonance.app" ]; then
+            cd ../VSCode-darwin-arm64
+            zip -r ../void-editor/Resonance-darwin-arm64.zip Resonance.app
+          else
+            echo "App not found, listing directories:"
+            find . -name "*.app" -type d
+          fi
       
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: Resonance-darwin-arm64
-          path: Resonance-darwin-arm64.dmg
+          path: void-editor/Resonance-darwin-arm64.zip
   
   build-windows:
     name: Build Windows
@@ -97,30 +106,28 @@ jobs:
       
       - name: Build Windows x64
         working-directory: void-editor
-        run: npm run gulp -- vscode-win32-x64-inno-updater
+        run: |
+          npm run compile
+          npm run gulp -- vscode-win32-x64
       
-      - name: Find installer
-        id: find-installer
-        shell: bash
+      - name: Package Windows app
         working-directory: void-editor
-        run: |
-          INSTALLER=$(find .build -name "*Setup.exe" | head -1)
-          echo "installer=$INSTALLER" >> $GITHUB_OUTPUT
-          echo "Found installer: $INSTALLER"
-      
-      - name: Rename installer
         shell: bash
         run: |
-          INSTALLER="void-editor/${{ steps.find-installer.outputs.installer }}"
-          if [ -f "$INSTALLER" ]; then
-            cp "$INSTALLER" "ResonanceSetup.exe"
+          if [ -d ".build/win32-x64/Resonance-win32-x64" ]; then
+            cd .build/win32-x64
+            7z a ../../Resonance-win32-x64.zip Resonance-win32-x64
+          else
+            echo "App not found, listing directories:"
+            find .build -type d -name "*Resonance*" || echo "No Resonance directories found"
+            ls -la .build/ || echo ".build not found"
           fi
       
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: Resonance-win32-x64
-          path: ResonanceSetup.exe
+          path: void-editor/Resonance-win32-x64.zip
   
   create-release:
     name: Create GitHub Release
@@ -155,18 +162,18 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            Resonance-darwin-arm64.dmg
-            ResonanceSetup.exe
+            Resonance-darwin-arm64.zip
+            Resonance-win32-x64.zip
           body: |
             ## Resonance ${{ steps.get-version.outputs.version }}
             
             ### Downloads
-            - **macOS (Apple Silicon)**: Resonance-darwin-arm64.dmg
-            - **Windows (x64)**: ResonanceSetup.exe
+            - **macOS (Apple Silicon)**: Resonance-darwin-arm64.zip
+            - **Windows (x64)**: Resonance-win32-x64.zip
             
             ### Installation
-            - **macOS**: Download the DMG, open it, and drag Resonance to Applications
-            - **Windows**: Download and run ResonanceSetup.exe
+            - **macOS**: Download the ZIP, extract it, and drag Resonance.app to Applications
+            - **Windows**: Download the ZIP, extract it, and run Resonance.exe
             
             ### Auto-Update
             This version includes automatic update checking. The app will notify you when new versions are available.
