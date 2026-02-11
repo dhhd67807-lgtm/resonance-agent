@@ -1,0 +1,142 @@
+name: Build and Release Resonance
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.4.9)'
+        required: true
+        default: 'v1.4.9'
+
+jobs:
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: |
+          cd void-editor
+          yarn install --frozen-lockfile
+        
+      - name: Build macOS ARM64
+        run: |
+          cd void-editor
+          yarn gulp vscode-darwin-arm64-min
+      
+      - name: Create DMG
+        run: |
+          hdiutil create -volname "Resonance" -srcfolder void-editor/.build/electron/Resonance.app -ov -format UDZO Resonance-darwin-arm64.dmg
+      
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Resonance-darwin-arm64
+          path: Resonance-darwin-arm64.dmg
+  
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: |
+          cd void-editor
+          yarn install --frozen-lockfile
+      
+      - name: Build Windows x64
+        run: |
+          cd void-editor
+          yarn gulp vscode-win32-x64-inno-updater
+      
+      - name: Find installer
+        id: find-installer
+        shell: bash
+        run: |
+          INSTALLER=$(find void-editor/.build -name "*Setup.exe" | head -1)
+          echo "installer=$INSTALLER" >> $GITHUB_OUTPUT
+          echo "Found installer: $INSTALLER"
+      
+      - name: Rename installer
+        shell: bash
+        run: |
+          INSTALLER="${{ steps.find-installer.outputs.installer }}"
+          if [ -f "$INSTALLER" ]; then
+            cp "$INSTALLER" "ResonanceSetup.exe"
+          fi
+      
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Resonance-win32-x64
+          path: ResonanceSetup.exe
+  
+  create-release:
+    name: Create GitHub Release
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Resonance-darwin-arm64
+      
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Resonance-win32-x64
+      
+      - name: Get version
+        id: get-version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get-version.outputs.version }}
+          name: Resonance ${{ steps.get-version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            Resonance-darwin-arm64.dmg
+            ResonanceSetup.exe
+          body: |
+            ## Resonance ${{ steps.get-version.outputs.version }}
+            
+            ### Downloads
+            - **macOS (Apple Silicon)**: Resonance-darwin-arm64.dmg
+            - **Windows (x64)**: ResonanceSetup.exe
+            
+            ### Installation
+            - **macOS**: Download the DMG, open it, and drag Resonance to Applications
+            - **Windows**: Download and run ResonanceSetup.exe
+            
+            ### Auto-Update
+            This version includes automatic update checking. The app will notify you when new versions are available.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
