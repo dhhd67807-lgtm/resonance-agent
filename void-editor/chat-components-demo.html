@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Void Chat Components Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            background: #000000;
+            color: #FFFFFF;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #FFFFFF;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+
+        h2 {
+            color: #E6E6FA;
+            margin: 30px 0 15px 0;
+            font-size: 18px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+
+        /* Chat Message */
+        .chat-message {
+            background: #0A0A0A;
+            border: 1px solid #1A1A1A;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            color: #999;
+            font-size: 13px;
+        }
+
+        .message-content {
+            color: #FFFFFF;
+            font-size: 14px;
+        }
+
+        /* Tool Call Component - Two Separate Boxes */
+        .tool-call {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .tool-header {
+            background: #0A0A0A;
+            border: 1px solid #1A1A1A;
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            user-select: none;
+        }
+
+        .tool-title {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            color: #CCC;
+            font-size: 14px;
+        }
+
+        .tool-action {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(110deg, #808080, 35%, #fff, 50%, #808080, 75%, #808080);
+            background-size: 200% 100%;
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 2s linear infinite;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            font-size: 16px;
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
+        .tool-filename {
+            color: #999;
+            font-size: 13px;
+        }
+
+        .tool-title .file-badge {
+            background: #FF1493;
+            color: #FFFFFF;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .tool-content {
+            background: #0A0A0A;
+            border: 1px solid #FFFFFF;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: #CCC;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+
+        /* Code Block */
+        .code-block {
+            background: #0A0A0A;
+            border: 1px solid #1A1A1A;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 12px 0;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+        }
+
+        .code-block .keyword { color: #FF1493; }
+        .code-block .string { color: #DDA0DD; }
+        .code-block .function { color: #BA55D3; }
+        .code-block .comment { color: #999; }
+
+        /* Input Box */
+        .input-container {
+            background: #0A0A0A;
+            border: 1px solid #1A1A1A;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 20px;
+        }
+
+        .input-box {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: #FFFFFF;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .input-box::placeholder {
+            color: #666;
+        }
+
+        /* Button */
+        .button {
+            background: #FFFFFF;
+            color: #000000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: opacity 0.15s;
+        }
+
+        .button:hover {
+            opacity: 0.9;
+        }
+
+        /* Status Indicators */
+        .status {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            font-size: 12px;
+        }
+
+        .status.success {
+            background: transparent;
+            color: #4ADE80;
+        }
+
+        .status.error {
+            background: transparent;
+            color: #EF4444;
+        }
+
+        .status.running {
+            background: transparent;
+            color: #60A5FA;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #333;
+            border-top-color: #FFFFFF;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* File Tree */
+        .file-tree {
+            background: #0A0A0A;
+            border: 1px solid #1A1A1A;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 12px 0;
+        }
+
+        .file-item {
+            padding: 6px 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #CCC;
+            transition: background 0.15s;
+        }
+
+        .file-item:hover {
+            background: #111;
+        }
+
+        .file-item.folder {
+            color: #DDA0DD;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Void Chat Components Demo</h1>
+        
+        <h2>💬 Chat Messages</h2>
+        
+        <div class="chat-message">
+            <div class="message-header">
+                <span>👤 User</span>
+                <span>•</span>
+                <span>2:30 PM</span>
+            </div>
+            <div class="message-content">
+                Can you read the package.json file and tell me what dependencies are installed?
+            </div>
+        </div>
+
+        <div class="chat-message">
+            <div class="message-header">
+                <span>🤖 Assistant</span>
+                <span>•</span>
+                <span>2:30 PM</span>
+            </div>
+            <div class="message-content">
+                I'll read the package.json file for you.
+            </div>
+        </div>
+
+        <h2>🔧 Tool Calls</h2>
+
+        <!-- Read File Tool -->
+        <div class="tool-call">
+            <div class="tool-header">
+                <div class="tool-title">
+                    <span class="tool-action">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        Read file
+                    </span>
+                    <span class="tool-filename">package.json</span>
+                </div>
+                <span class="status success">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                </span>
+            </div>
+        </div>
+
+        <!-- Create File Tool -->
+        <div class="tool-call">
+            <div class="tool-header">
+                <div class="tool-title">
+                    <span class="tool-action">Created</span>
+                    <span class="tool-filename">src/components/Button.tsx</span>
+                </div>
+                <span class="status success">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                </span>
+            </div>
+        </div>
+
+        <!-- Edit File Tool -->
+        <div class="tool-call">
+            <div class="tool-header">
+                <div class="tool-title">
+                    <span class="tool-action">Edited file</span>
+                    <span class="tool-filename">src/index.ts</span>
+                </div>
+                <span class="status success">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                </span>
+            </div>
+        </div>
+
+        <!-- Running Command Tool -->
+        <div class="tool-call">
+            <div class="tool-header">
+                <div class="tool-title">
+                    <span class="tool-action" style="display: flex; align-items: center; gap: 8px;">
+                        Running terminal
+                        <span class="spinner"></span>
+                    </span>
+                    <span class="tool-filename">npm install</span>
+                </div>
+                <span class="status running">
+                    <span class="spinner"></span>
+                </span>
+            </div>
+        </div>
+
+        <!-- Search Tool -->
+        <div class="tool-call">
+            <div class="tool-header">
+                <div class="tool-title">
+                    <span class="tool-action">Searched</span>
+                    <span class="tool-filename">"useState"</span>
+                </div>
+                <span class="status success">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                </span>
+            </div>
+        </div>
+
+        <!-- Error Tool -->
+        <div class="tool-call">
+            <div class="tool-header">
+                <div class="tool-title">
+                    <span class="tool-action">Ran terminal</span>
+                    <span class="tool-filename">npm test</span>
+                </div>
+                <span class="status error">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </span>
+            </div>
+        </div>
+
+        <h2>📁 File Tree</h2>
+        <div class="file-tree">
+            <div class="file-item folder">📁 src</div>
+            <div class="file-item" style="padding-left: 24px;">📄 index.ts</div>
+            <div class="file-item" style="padding-left: 24px;">📄 App.tsx</div>
+            <div class="file-item folder" style="padding-left: 24px;">📁 components</div>
+            <div class="file-item" style="padding-left: 48px;">📄 Button.tsx</div>
+            <div class="file-item" style="padding-left: 48px;">📄 Form.tsx</div>
+        </div>
+
+        <h2>💬 Input Box</h2>
+        <div class="input-container">
+            <textarea class="input-box" placeholder="Ask me anything about your code..."></textarea>
+            <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
+                <button class="button">Send</button>
+            </div>
+        </div>
+
+        <h2>📊 Status Indicators</h2>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span class="status success">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+            </span>
+            <span class="status error">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </span>
+            <span class="status running">
+                <span class="spinner"></span>
+            </span>
+        </div>
+
+    </div>
+
+    <script>
+        // No toggle functionality - tools are always expanded
+    </script>
+</body>
+</html>
