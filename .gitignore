@@ -1,0 +1,13 @@
+node_modules/
+.DS_Store
+*.dmg
+*.zip
+*.log
+.build/
+out/
+*.md
+!void-editor/README.md
+as/
+logo/
+.kiro/
+.vscode/
