@@ -538,6 +538,13 @@ const ScrollToBottomContainer = ({ children, className, style, scrollContainerRe
 
 export const getRelative = (uri: URI, accessor: ReturnType<typeof useAccessor>) => {
 	const workspaceContextService = accessor.get('IWorkspaceContextService')
+	
+	// Defensive check: ensure uri.fsPath exists and is a string
+	if (!uri || !uri.fsPath || typeof uri.fsPath !== 'string') {
+		console.error('getRelative received invalid uri:', uri);
+		return undefined;
+	}
+	
 	let path: string
 	const isInside = workspaceContextService.isInsideWorkspace(uri)
 	if (isInside) {
@@ -552,6 +559,12 @@ export const getRelative = (uri: URI, accessor: ReturnType<typeof useAccessor>) 
 }
 
 export const getFolderName = (pathStr: string) => {
+	// Defensive check: ensure pathStr is a string
+	if (typeof pathStr !== 'string' || !pathStr) {
+		console.error('getFolderName received non-string path:', pathStr);
+		return '/';
+	}
+	
 	// 'unixify' path
 	pathStr = pathStr.replace(/[/\\]+/g, '/') // replace any / or \ or \\ with /
 	const parts = pathStr.split('/') // split on /
@@ -565,6 +578,12 @@ export const getFolderName = (pathStr: string) => {
 }
 
 export const getBasename = (pathStr: string, parts: number = 1) => {
+	// Defensive check: ensure pathStr is a string
+	if (typeof pathStr !== 'string' || !pathStr) {
+		console.error('getBasename received non-string path:', pathStr);
+		return 'unknown';
+	}
+	
 	// 'unixify' path
 	pathStr = pathStr.replace(/[/\\]+/g, '/') // replace any / or \ or \\ with /
 	const allParts = pathStr.split('/') // split on /

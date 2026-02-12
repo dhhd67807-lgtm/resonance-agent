@@ -142,52 +142,49 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=8192"
         run: npm run gulp -- vscode-win32-x64
       
-      - name: Find Windows build output
+      - name: Build Windows x64 User Installer
         working-directory: void-editor
-        shell: bash
-        run: |
-          echo "Searching for build output..."
-          echo "=== Checking .build directory ==="
-          ls -la .build/ || echo ".build not found"
-          
-          echo "=== Checking .build/win32-x64 ==="
-          ls -la .build/win32-x64/ || echo ".build/win32-x64 not found"
-          
-          echo "=== Searching for VSCode directories ==="
-          find .. -maxdepth 2 -type d -name "*VSCode*" -o -name "*Resonance*" || echo "No VSCode/Resonance directories found"
-          
-          echo "=== Searching for .exe files ==="
-          find . -name "*.exe" -type f | head -20 || echo "No exe files found"
+        env:
+          NODE_OPTIONS: "--max-old-space-size=8192"
+        run: npm run gulp -- vscode-win32-x64-user-setup
       
-      - name: Package Windows app
+      - name: Find Windows installer
         working-directory: void-editor
         shell: bash
         run: |
-          # Try multiple possible locations
-          if [ -d ".build/win32-x64/VSCode-win32-x64" ]; then
-            echo "Found VSCode-win32-x64, packaging..."
-            cd .build/win32-x64
-            7z a ../../Resonance-win32-x64.zip VSCode-win32-x64
-          elif [ -d ".build/win32-x64/Resonance-win32-x64" ]; then
-            echo "Found Resonance-win32-x64, packaging..."
-            cd .build/win32-x64
-            7z a ../../Resonance-win32-x64.zip Resonance-win32-x64
-          elif [ -d "../VSCode-win32-x64" ]; then
-            echo "Found VSCode-win32-x64 in parent, packaging..."
-            cd ../VSCode-win32-x64
-            7z a ../void-editor/Resonance-win32-x64.zip .
+          echo "Searching for installer..."
+          echo "=== Checking .build/win32-x64/user-setup ==="
+          ls -la .build/win32-x64/user-setup/ || echo "user-setup not found"
+          
+          echo "=== Searching for setup exe files ==="
+          find .build -name "*Setup*.exe" -type f || echo "No setup exe files found"
+      
+      - name: Rename and prepare installer
+        working-directory: void-editor
+        shell: bash
+        run: |
+          # Find the setup exe and rename it
+          if [ -f ".build/win32-x64/user-setup/VSCodeSetup.exe" ]; then
+            echo "Found VSCodeSetup.exe, renaming to ResonanceSetup.exe..."
+            mv .build/win32-x64/user-setup/VSCodeSetup.exe ./ResonanceSetup-x64.exe
+          elif [ -f ".build/win32-x64/user-setup/ResonanceSetup.exe" ]; then
+            echo "Found ResonanceSetup.exe, copying..."
+            cp .build/win32-x64/user-setup/ResonanceSetup.exe ./ResonanceSetup-x64.exe
           else
-            echo "ERROR: Build output not found!"
-            echo "Listing all directories in .build:"
-            ls -R .build/ || echo "No .build directory"
+            echo "ERROR: Setup exe not found!"
+            echo "Listing all exe files:"
+            find .build -name "*.exe" -type f || echo "No exe files found"
             exit 1
           fi
+          
+          echo "Installer created: ResonanceSetup-x64.exe"
+          ls -lh ResonanceSetup-x64.exe
       
-      - name: Upload Windows artifact
+      - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
-          name: Resonance-win32-x64
-          path: void-editor/Resonance-win32-x64.zip
+          name: Resonance-win32-x64-installer
+          path: void-editor/ResonanceSetup-x64.exe
   
   create-release:
     name: Create GitHub Release
@@ -205,7 +202,7 @@ jobs:
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
         with:
-          name: Resonance-win32-x64
+          name: Resonance-win32-x64-installer
         continue-on-error: true
       
       - name: Check available files
@@ -232,18 +229,18 @@ jobs:
           prerelease: false
           files: |
             Resonance-darwin-arm64.zip
-            Resonance-win32-x64.zip
+            ResonanceSetup-x64.exe
           fail_on_unmatched_files: false
           body: |
             ## Resonance ${{ steps.get-version.outputs.version }}
             
             ### Downloads
             - **macOS (Apple Silicon)**: Resonance-darwin-arm64.zip (if available)
-            - **Windows (x64)**: Resonance-win32-x64.zip (if available)
+            - **Windows (x64)**: ResonanceSetup-x64.exe (if available)
             
             ### Installation
             - **macOS**: Download the ZIP, extract it, and drag Resonance.app to Applications
-            - **Windows**: Download the ZIP, extract it, and run Resonance.exe
+            - **Windows**: Download ResonanceSetup-x64.exe and run it to install Resonance
             
             ### Auto-Update
             This version includes automatic update checking. The app will notify you when new versions are available.
