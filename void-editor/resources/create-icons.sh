@@ -15,6 +15,7 @@ echo "📱 Generating PNG files for macOS..."
 convert -background none -resize 16x16 $SVG_FILE icon_temp/icon_16x16.png
 convert -background none -resize 32x32 $SVG_FILE icon_temp/icon_16x16@2x.png
 convert -background none -resize 32x32 $SVG_FILE icon_temp/icon_32x32.png
+convert -background none -resize 48x48 $SVG_FILE icon_temp/icon_48x48.png
 convert -background none -resize 64x64 $SVG_FILE icon_temp/icon_32x32@2x.png
 convert -background none -resize 128x128 $SVG_FILE icon_temp/icon_128x128.png
 convert -background none -resize 256x256 $SVG_FILE icon_temp/icon_128x128@2x.png
