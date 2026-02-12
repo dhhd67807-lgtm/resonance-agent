@@ -38,7 +38,7 @@ jobs:
         env:
           SHELL: /bin/bash
           npm_config_shell: /bin/bash
-        run: npm ci --ignore-scripts
+        run: npm ci
         shell: bash
       
       - name: Build React components
@@ -97,7 +97,7 @@ jobs:
         env:
           SHELL: /bin/bash
           npm_config_shell: /bin/bash
-        run: npm ci --ignore-scripts
+        run: npm ci
         shell: bash
       
       - name: Build React components
