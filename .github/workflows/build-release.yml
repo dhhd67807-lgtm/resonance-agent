@@ -51,18 +51,46 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=8192"
         run: npm run gulp -- vscode-darwin-arm64
       
+      - name: Find macOS build output
+        working-directory: void-editor
+        run: |
+          echo "Searching for build output..."
+          echo "=== Checking .build directory ==="
+          ls -la .build/ || echo ".build not found"
+          
+          echo "=== Checking .build/darwin ==="
+          ls -la .build/darwin/ || echo ".build/darwin not found"
+          
+          echo "=== Searching for .app bundles ==="
+          find .. -maxdepth 2 -type d -name "*.app" || echo "No .app bundles found"
+      
       - name: Package macOS app
         working-directory: void-editor
         run: |
-          if [ -d ".build/darwin/Resonance.app" ]; then
+          # Try multiple possible locations
+          if [ -d ".build/darwin/VSCode.app" ]; then
+            echo "Found VSCode.app, renaming and packaging..."
+            cd .build/darwin
+            mv VSCode.app Resonance.app || true
+            zip -r ../../Resonance-darwin-arm64.zip Resonance.app
+          elif [ -d ".build/darwin/Resonance.app" ]; then
+            echo "Found Resonance.app, packaging..."
             cd .build/darwin
             zip -r ../../Resonance-darwin-arm64.zip Resonance.app
+          elif [ -d "../VSCode-darwin-arm64/VSCode.app" ]; then
+            echo "Found VSCode.app in parent, renaming and packaging..."
+            cd ../VSCode-darwin-arm64
+            mv VSCode.app Resonance.app || true
+            zip -r ../void-editor/Resonance-darwin-arm64.zip Resonance.app
           elif [ -d "../VSCode-darwin-arm64/Resonance.app" ]; then
+            echo "Found Resonance.app in parent, packaging..."
             cd ../VSCode-darwin-arm64
             zip -r ../void-editor/Resonance-darwin-arm64.zip Resonance.app
           else
-            echo "App not found, listing directories:"
-            find . -name "*.app" -type d
+            echo "ERROR: Build output not found!"
+            echo "Listing all .app bundles:"
+            find . -name "*.app" -type d || echo "No .app bundles found"
+            exit 1
           fi
       
       - name: Upload macOS artifact
@@ -110,17 +138,45 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=8192"
         run: npm run gulp -- vscode-win32-x64
       
+      - name: Find Windows build output
+        working-directory: void-editor
+        shell: bash
+        run: |
+          echo "Searching for build output..."
+          echo "=== Checking .build directory ==="
+          ls -la .build/ || echo ".build not found"
+          
+          echo "=== Checking .build/win32-x64 ==="
+          ls -la .build/win32-x64/ || echo ".build/win32-x64 not found"
+          
+          echo "=== Searching for VSCode directories ==="
+          find .. -maxdepth 2 -type d -name "*VSCode*" -o -name "*Resonance*" || echo "No VSCode/Resonance directories found"
+          
+          echo "=== Searching for .exe files ==="
+          find . -name "*.exe" -type f | head -20 || echo "No exe files found"
+      
       - name: Package Windows app
         working-directory: void-editor
         shell: bash
         run: |
-          if [ -d ".build/win32-x64/Resonance-win32-x64" ]; then
+          # Try multiple possible locations
+          if [ -d ".build/win32-x64/VSCode-win32-x64" ]; then
+            echo "Found VSCode-win32-x64, packaging..."
+            cd .build/win32-x64
+            7z a ../../Resonance-win32-x64.zip VSCode-win32-x64
+          elif [ -d ".build/win32-x64/Resonance-win32-x64" ]; then
+            echo "Found Resonance-win32-x64, packaging..."
             cd .build/win32-x64
             7z a ../../Resonance-win32-x64.zip Resonance-win32-x64
+          elif [ -d "../VSCode-win32-x64" ]; then
+            echo "Found VSCode-win32-x64 in parent, packaging..."
+            cd ../VSCode-win32-x64
+            7z a ../void-editor/Resonance-win32-x64.zip .
           else
-            echo "App not found, listing directories:"
-            find .build -type d -name "*Resonance*" || echo "No Resonance directories found"
-            ls -la .build/ || echo ".build not found"
+            echo "ERROR: Build output not found!"
+            echo "Listing all directories in .build:"
+            ls -R .build/ || echo "No .build directory"
+            exit 1
           fi
       
       - name: Upload Windows artifact
