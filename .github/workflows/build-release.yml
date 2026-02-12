@@ -156,6 +156,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     needs: [build-macos, build-windows]
+    if: always()
     runs-on: ubuntu-latest
     
     steps:
@@ -163,11 +164,19 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Resonance-darwin-arm64
+        continue-on-error: true
       
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
         with:
           name: Resonance-win32-x64
+        continue-on-error: true
+      
+      - name: Check available files
+        run: |
+          echo "Available files:"
+          ls -la
+          echo "Creating release with available artifacts..."
       
       - name: Get version
         id: get-version
@@ -188,12 +197,13 @@ jobs:
           files: |
             Resonance-darwin-arm64.zip
             Resonance-win32-x64.zip
+          fail_on_unmatched_files: false
           body: |
             ## Resonance ${{ steps.get-version.outputs.version }}
             
             ### Downloads
-            - **macOS (Apple Silicon)**: Resonance-darwin-arm64.zip
-            - **Windows (x64)**: Resonance-win32-x64.zip
+            - **macOS (Apple Silicon)**: Resonance-darwin-arm64.zip (if available)
+            - **Windows (x64)**: Resonance-win32-x64.zip (if available)
             
             ### Installation
             - **macOS**: Download the ZIP, extract it, and drag Resonance.app to Applications
@@ -201,5 +211,8 @@ jobs:
             
             ### Auto-Update
             This version includes automatic update checking. The app will notify you when new versions are available.
+            
+            ### Note
+            Some builds may still be in progress. Check back later if your platform isn't available yet.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
