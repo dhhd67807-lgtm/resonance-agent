@@ -188,5 +188,11 @@ for (let dir of dirs) {
 	npmInstall(dir, opts);
 }
 
-cp.execSync('git config pull.rebase merges');
-cp.execSync('git config blame.ignoreRevsFile .git-blame-ignore-revs');
+// Skip git config in CI environments or when git is not available
+try {
+	cp.execSync('git config pull.rebase merges', { stdio: 'ignore' });
+	cp.execSync('git config blame.ignoreRevsFile .git-blame-ignore-revs', { stdio: 'ignore' });
+} catch (error) {
+	// Silently ignore git config errors in CI or when git is not available
+	console.log('Skipping git config (not available or in CI environment)');
+}
