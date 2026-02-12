@@ -38,6 +38,10 @@ export class VoidMainUpdateService extends Disposable implements IVoidUpdateServ
 				return { message: null } as const
 		}
 
+		// DEMO MODE: Force AvailableForDownload state for testing
+		// Uncomment the next line to simulate an update available
+		// this._updateService.state = { type: StateType.AvailableForDownload } as any;
+
 		this._updateService.checkForUpdates(false) // implicity check, then handle result ourselves
 
 		console.log('updateState', this._updateService.state)
@@ -105,6 +109,12 @@ export class VoidMainUpdateService extends Disposable implements IVoidUpdateServ
 			const latestVersion = version
 
 			const isUpToDate = myVersion === latestVersion // only makes sense if response.ok
+
+			// DEMO MODE: Force update available for testing
+			// Uncomment the next 3 lines to simulate an update available
+			// const latestVersion = '1.99.4'; // Simulate newer version
+			// const isUpToDate = false; // Force not up to date
+			// console.log('[UPDATE DEMO] Simulating update available: current=' + myVersion + ', latest=' + latestVersion);
 
 			let message: string | null
 			let action: 'reinstall' | undefined
