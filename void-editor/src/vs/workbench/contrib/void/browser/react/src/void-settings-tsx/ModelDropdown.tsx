@@ -38,6 +38,19 @@ const ModelSelectBox = ({ options, featureName, className }: { options: ModelOpt
 		voidSettingsService.setModelSelectionOfFeature(featureName, newOption.selection)
 	}, [voidSettingsService, featureName])
 
+	// Function to get logo SVG for provider
+	const getProviderLogo = (providerName: string): React.ReactNode => {
+		if (providerName === 'anthropic') {
+			return (
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<path d="M14.5 2L18.5 22H15.5L11.5 2H14.5Z" fill="currentColor"/>
+					<path d="M9.5 2L13.5 22H10.5L6.5 2H9.5Z" fill="currentColor"/>
+				</svg>
+			);
+		}
+		return null;
+	};
+
 	return <VoidCustomDropdownBox
 		options={options}
 		selectedOption={selectedOption}
@@ -45,6 +58,7 @@ const ModelSelectBox = ({ options, featureName, className }: { options: ModelOpt
 		getOptionDisplayName={(option) => option.selection.modelName.split('/').pop() || option.selection.modelName}
 		getOptionDropdownName={(option) => option.selection.modelName.split('/').pop() || option.selection.modelName}
 		getOptionDropdownDetail={(option) => ''}
+		getOptionLogo={(option) => getProviderLogo(option.selection.providerName)}
 		getOptionsEqual={(a, b) => optionsEqual([a], [b])}
 		className={className}
 		matchInputWidth={false}

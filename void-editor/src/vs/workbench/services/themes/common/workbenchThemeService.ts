@@ -39,12 +39,12 @@ export enum ThemeSettings {
 }
 
 export enum ThemeSettingDefaults {
-	COLOR_THEME_DARK = 'Black Magenta', // Void changed this from 'Default Dark Modern'
+	COLOR_THEME_DARK = 'Default Dark Modern', // Changed to use red-accented Dark Modern
 	COLOR_THEME_LIGHT = 'Default Light Modern',
 	COLOR_THEME_HC_DARK = 'Default High Contrast',
 	COLOR_THEME_HC_LIGHT = 'Default High Contrast Light',
 
-	COLOR_THEME_DARK_OLD = 'Default Dark Modern', // Void changed this from 'Default Dark+'
+	COLOR_THEME_DARK_OLD = 'Black Magenta', // Old default
 	COLOR_THEME_LIGHT_OLD = 'Default Light+',
 
 	FILE_ICON_THEME = 'vs-seti',

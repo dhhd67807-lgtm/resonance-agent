@@ -103,34 +103,25 @@ export const CursorStyleModelSelector = ({ featureName, className }: { featureNa
 			{/* Dropdown */}
 			{isOpen && (
 				<div 
-					className="absolute top-full left-0 mt-1 min-w-[10rem] border border-void-border-3 rounded-md shadow-lg z-50"
+					className="absolute top-full left-0 mt-1 min-w-[10rem] rounded-md shadow-lg z-50"
 					style={{
 						background: '#000000',
+						border: '1px solid rgba(255, 255, 255, 0.1)',
 						maxHeight: 'none',
 						overflow: 'visible',
+						padding: '8px',
 					}}
 				>
-					{/* Model List with Fade Gradient */}
+					{/* Model List */}
 					<div 
-						className="py-1 relative"
+						className="relative"
 						style={{
 							maxHeight: 'none',
 							overflow: 'visible',
+							scrollbarWidth: 'none',
+							msOverflowStyle: 'none',
 						}}
 					>
-						{/* Top fade gradient */}
-						<div 
-							style={{
-								position: 'absolute',
-								top: 0,
-								left: 0,
-								right: 0,
-								height: '20px',
-								background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)',
-								pointerEvents: 'none',
-								zIndex: 1,
-							}}
-						/>
 						
 						{allModels.length === 0 ? (
 							<div className="px-2 py-1.5 text-center text-void-fg-3 text-xs">
@@ -168,24 +159,10 @@ export const CursorStyleModelSelector = ({ featureName, className }: { featureNa
 								)
 							})
 						)}
-						
-						{/* Bottom fade gradient */}
-						<div 
-							style={{
-								position: 'absolute',
-								bottom: 0,
-								left: 0,
-								right: 0,
-								height: '20px',
-								background: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)',
-								pointerEvents: 'none',
-								zIndex: 1,
-							}}
-						/>
 					</div>
 
 					{/* Add Models Button */}
-					<div className="border-t border-void-border-3 p-1">
+					<div className="p-1" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
 						<button
 							type="button"
 							onClick={(e) => {

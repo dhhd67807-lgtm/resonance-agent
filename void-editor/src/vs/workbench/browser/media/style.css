@@ -319,17 +319,17 @@ body {
 	outline-offset: -1px;
 }
 
-/* Cursor-Style Light Black & Gray Theme */
+/* Cursor-Style Theme - Colors from theme file */
 
-/* Main workbench background */
+/* Main workbench background - use theme color */
 .monaco-workbench {
-	background: #1E1E1E;
+	background: var(--vscode-editor-background);
 }
 
-/* Title bar */
+/* Title bar - use theme color */
 .monaco-workbench .part.titlebar {
-	background: #1E1E1E !important;
-	border-bottom: 1px solid #2D2D2D;
+	background: var(--vscode-titleBar-activeBackground) !important;
+	border-bottom: 1px solid var(--vscode-titleBar-border);
 }
 
 /* Activity bar positioned in left sidebar, centered */
@@ -551,13 +551,13 @@ body {
 	gap: 4px;
 }
 
-/* Sidebar with activity bar in title */
+/* Sidebar with activity bar in title - use theme color */
 .monaco-workbench .part.sidebar {
-	background: #1E1E1E !important;
-	border-right: 1px solid #2D2D2D;
-	border-top-right-radius: 8px;
-	border-bottom-right-radius: 8px;
-	margin-right: 4px;
+	background: var(--vscode-sideBar-background) !important;
+	border-right: 1px solid var(--vscode-sideBar-border);
+	border-top-right-radius: 0px;
+	border-bottom-right-radius: 0px;
+	margin-right: 0px;
 	position: relative !important;
 }
 
@@ -576,26 +576,24 @@ body {
 	display: none !important;
 }
 
-/* Editor background - darker than sidebars */
+/* Editor background - use theme color */
 .monaco-workbench .editor-container {
-	background: #0F0F0F;
-	border-radius: 8px;
-	margin-left: 4px;
+	background: var(--vscode-editor-background);
+	border-radius: 0px;
+	margin-left: 0px;
 }
 
-/* Status bar */
+/* Status bar - use theme color */
 .monaco-workbench .part.statusbar {
-	background: #1E1E1E !important;
-	border-top: 1px solid #2D2D2D;
+	background: var(--vscode-statusBar-background) !important;
+	border-top: 1px solid var(--vscode-statusBar-border);
 }
 
-/* Panel - full width */
+/* Panel - full width - use theme color */
 .monaco-workbench .part.panel {
-	background: #1E1E1E !important;
-	border-top: 1px solid #2D2D2D;
-	border-top-left-radius: 8px;
-	border-top-right-radius: 8px;
-	margin-top: 4px;
+	background: var(--vscode-panel-background) !important;
+	border-top: 1px solid var(--vscode-panel-border);
+	margin-top: 0;
 	margin-left: 0 !important;
 	margin-right: 0 !important;
 	width: 100% !important;
@@ -603,111 +601,127 @@ body {
 	right: 0 !important;
 }
 
-/* Editor background with bottom spacing for panel */
+/* Editor background - clean design */
 .monaco-workbench .part.editor {
-	margin-bottom: 4px;
-	border-radius: 8px;
+	margin-bottom: 0;
 	overflow: hidden;
 }
 
 .monaco-workbench .part.editor > .content {
-	border-radius: 8px;
 }
 
-/* Button style */
+/* Button style - use theme color with rounded corners */
 .monaco-workbench .monaco-button {
-	background: #2D2D2D !important;
-	border: 1px solid #3E3E3E !important;
-	border-radius: 6px;
+	background: var(--vscode-button-background) !important;
+	border: 1px solid var(--vscode-button-border) !important;
+	border-radius: 8px;
 	transition: all 0.15s ease;
 }
 
 .monaco-workbench .monaco-button:hover {
-	background: #3E3E3E !important;
-	border-color: #4E4E4E !important;
+	background: var(--vscode-button-hoverBackground) !important;
 }
 
 .monaco-workbench .monaco-button:active {
-	background: #2D2D2D !important;
+	background: var(--vscode-button-background) !important;
 }
 
-/* Tab style - inactive tabs blend with grey bar, active tab is black */
+/* Tab style - use theme colors */
 .monaco-workbench .part.editor > .content .editor-group-container > .title .tabs-container > .tab,
 .monaco-workbench .part.editor > .content .editor-group-container.active > .title .tabs-container > .tab,
 .monaco-workbench .tabs-container .tab {
 	border: none !important;
-	background: #1E1E1E !important;
-	background-color: #1E1E1E !important;
-	margin-right: 2px !important;
-	border-radius: 4px !important;
+	background: var(--vscode-tab-inactiveBackground) !important;
+	background-color: var(--vscode-tab-inactiveBackground) !important;
+	margin-right: 0px !important;
+	border-radius: 0px !important;
 }
 
 .monaco-workbench .part.editor > .content .editor-group-container > .title .tabs-container > .tab:hover,
 .monaco-workbench .part.editor > .content .editor-group-container.active > .title .tabs-container > .tab:hover,
 .monaco-workbench .tabs-container .tab:hover {
-	background: #252525 !important;
-	background-color: #252525 !important;
+	background: var(--vscode-tab-hoverBackground) !important;
+	background-color: var(--vscode-tab-hoverBackground) !important;
 }
 
 .monaco-workbench .part.editor > .content .editor-group-container > .title .tabs-container > .tab.active,
 .monaco-workbench .part.editor > .content .editor-group-container.active > .title .tabs-container > .tab.active,
 .monaco-workbench .tabs-container .tab.active {
-	background: #000000 !important;
-	background-color: #000000 !important;
+	background: var(--vscode-tab-activeBackground) !important;
+	background-color: var(--vscode-tab-activeBackground) !important;
 }
 
-/* Tab container background - grey like sidebar */
+/* Tab container background - use theme color */
 .monaco-workbench .tabs-container {
-	background: #1E1E1E !important;
-	background-color: #1E1E1E !important;
+	background: var(--vscode-editorGroupHeader-tabsBackground) !important;
+	background-color: var(--vscode-editorGroupHeader-tabsBackground) !important;
 }
 
 .monaco-workbench .editor-group-container > .title {
-	background: #1E1E1E !important;
-	background-color: #1E1E1E !important;
+	background: var(--vscode-editorGroupHeader-tabsBackground) !important;
+	background-color: var(--vscode-editorGroupHeader-tabsBackground) !important;
 }
 
 .monaco-workbench .part.editor > .content .editor-group-container > .title,
 .monaco-workbench .part.editor > .content .editor-group-container.active > .title {
-	background: #1E1E1E !important;
-	background-color: #1E1E1E !important;
+	background: var(--vscode-editorGroupHeader-tabsBackground) !important;
+	background-color: var(--vscode-editorGroupHeader-tabsBackground) !important;
 }
 
-/* Input fields with curved borders */
+/* Input fields with curved borders - use theme color */
 .monaco-workbench .monaco-inputbox {
-	background: #2D2D2D !important;
-	border: 1px solid #3E3E3E !important;
-	border-radius: 12px;
+	background: var(--vscode-input-background) !important;
+	border: 1px solid var(--vscode-input-border) !important;
+	border-radius: 8px;
 }
 
 .monaco-workbench .monaco-inputbox > .ibwrapper > .input,
 .monaco-workbench .monaco-inputbox > .ibwrapper > textarea.input {
-	border-radius: 12px !important;
+	border-radius: 8px !important;
 }
 
 /* Chat input box specifically */
 .monaco-workbench textarea,
 .monaco-workbench input[type="text"] {
-	border-radius: 12px !important;
+	border-radius: 8px !important;
 }
 
-/* Dropdown */
+/* Dropdown - use theme color */
 .monaco-workbench .monaco-dropdown {
-	background: #2D2D2D !important;
-	border: 1px solid #3E3E3E !important;
-	border-radius: 6px;
+	background: var(--vscode-dropdown-background) !important;
+	border: 1px solid var(--vscode-dropdown-border) !important;
+	border-radius: 8px;
 }
 
-/* List */
+/* Select boxes with Trae-style rounded corners and shadows */
+.monaco-workbench .monaco-select-box,
+.monaco-workbench select {
+	border-radius: 8px !important;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Dropdown list items */
+.monaco-workbench .monaco-list .monaco-list-row {
+	border-radius: 6px !important;
+	margin: 2px 4px !important;
+}
+
+/* List - use theme color */
 .monaco-workbench .monaco-list .monaco-list-row:hover {
-	background: #252525 !important;
-	border-radius: 4px;
+	background: var(--vscode-list-hoverBackground) !important;
+	border-radius: 6px;
 }
 
 .monaco-workbench .monaco-list .monaco-list-row.selected,
 .monaco-workbench .monaco-list .monaco-list-row.focused {
-	background: #2D2D2D !important;
-	border-radius: 4px;
+	background: #000000 !important;
+	color: #FFFFFF !important;
+	border-radius: 6px;
+}
+
+.monaco-workbench .monaco-list .monaco-list-row.selected .codicon,
+.monaco-workbench .monaco-list .monaco-list-row.focused .codicon {
+	color: #FFFFFF !important;
 }
 
 /* Scrollbar hidden */
@@ -731,61 +745,62 @@ body {
 	-ms-overflow-style: none !important;
 }
 
-/* Widget with box style */
+/* Widget with box style - use theme color with Trae-style rounded corners */
 .monaco-workbench .monaco-editor .suggest-widget,
 .monaco-workbench .monaco-editor .parameter-hints-widget,
 .monaco-workbench .monaco-editor .editor-widget {
-	background: #1F1F1F !important;
-	border: 1px solid #3A3A3A !important;
-	border-radius: 8px;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+	background: var(--vscode-editorWidget-background) !important;
+	border: 1px solid var(--vscode-editorWidget-border) !important;
+	border-radius: 12px;
+	box-shadow: 0 4px 16px var(--vscode-widget-shadow);
 }
 
-/* Context menu with box style */
+/* Context menu with box style - use theme color with rounded corners */
 .monaco-workbench .context-view .monaco-menu {
-	background: #1F1F1F !important;
-	border: 1px solid #3A3A3A !important;
-	border-radius: 8px;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+	background: var(--vscode-menu-background) !important;
+	border: 1px solid var(--vscode-menu-border) !important;
+	border-radius: 12px;
+	box-shadow: 0 4px 16px var(--vscode-widget-shadow);
+	padding: 4px;
 }
 
 .monaco-workbench .context-view .monaco-menu .monaco-action-bar .action-item:hover {
-	background: #2A2A2A !important;
-	border-radius: 4px;
+	background: var(--vscode-menu-selectionBackground) !important;
+	border-radius: 6px;
 }
 
-/* Notification with box style */
+/* Notification with box style - use theme color */
 .monaco-workbench .notifications-toasts .notification-toast,
 .monaco-workbench .notifications-center .notification-list-item {
-	background: #1F1F1F !important;
-	border: 1px solid #3A3A3A !important;
-	border-radius: 8px;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-}
-
-/* Quick input with box style */
-.monaco-workbench .quick-input-widget {
-	background: #1F1F1F !important;
-	border: 1px solid #3A3A3A !important;
+	background: var(--vscode-notifications-background) !important;
+	border: 1px solid var(--vscode-notifications-border) !important;
 	border-radius: 12px;
-	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+	box-shadow: 0 4px 16px var(--vscode-widget-shadow);
 }
 
-/* Badge with box style */
+/* Quick input with box style - use theme color */
+.monaco-workbench .quick-input-widget {
+	background: var(--vscode-quickInput-background) !important;
+	border: 1px solid #D4D4D4 !important;
+	border-radius: 16px;
+	box-shadow: 0 8px 32px var(--vscode-widget-shadow);
+}
+
+/* Badge with box style - use theme color */
 .monaco-workbench .monaco-count-badge {
-	background: #00E5FF !important;
-	color: #000000 !important;
+	background: var(--vscode-badge-background) !important;
+	color: var(--vscode-badge-foreground) !important;
 	border-radius: 10px;
 }
 
-/* Progress bar */
+/* Progress bar - use theme color */
 .monaco-workbench .monaco-progress-container .progress-bit {
-	background: #00E5FF !important;
+	background: var(--vscode-progressBar-background) !important;
 }
 
-/* Selection */
+/* Selection - use theme color */
 .monaco-workbench .monaco-editor .selected-text {
-	background: rgba(0, 229, 255, 0.2) !important;
+	background: var(--vscode-editor-selectionBackground) !important;
 }
 
 /* Focus with subtle glow */
@@ -794,13 +809,20 @@ body {
 	outline-offset: 0 !important;
 }
 
-/* Remove all cyan overlays and selections */
+/* Remove all overlays and selections - use theme color with Trae-style */
 .monaco-workbench .monaco-list .monaco-list-row.selected,
 .monaco-workbench .monaco-list .monaco-list-row.focused,
 .monaco-workbench .monaco-list .monaco-list-row:hover {
-	background: #252525 !important;
-	border-radius: 4px;
+	background: var(--vscode-list-hoverBackground) !important;
+	border-radius: 6px;
 	outline: none !important;
+}
+
+/* Selected items get black background with white text */
+.monaco-workbench .monaco-list .monaco-list-row.selected,
+.monaco-workbench .monaco-list .monaco-list-row.focused.selected {
+	background: #000000 !important;
+	color: #FFFFFF !important;
 }
 
 /* Hide minimap/code preview */
@@ -881,18 +903,18 @@ body {
 /* Notification minimal */
 .monaco-workbench .notifications-toasts .notification-toast,
 .monaco-workbench .notifications-center .notification-list-item {
-	background: #141414 !important;
-	border: 1px solid #2A2A2A !important;
+	background: #FFFFFF !important;
+	border: 1px solid #D4D4D4 !important;
 	border-radius: 8px;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 /* Quick input minimal */
 .monaco-workbench .quick-input-widget {
-	background: #141414 !important;
-	border: 1px solid #2A2A2A !important;
+	background: #FFFFFF !important;
+	border: 1px solid #D4D4D4 !important;
 	border-radius: 12px;
-	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 /* Badge minimal */
@@ -922,40 +944,40 @@ body {
 .monaco-workbench .monaco-editor .suggest-widget,
 .monaco-workbench .monaco-editor .parameter-hints-widget,
 .monaco-workbench .monaco-editor .editor-widget {
-	background: #252525 !important;
-	border: 1px solid #3E3E3E !important;
+	background: #FFFFFF !important;
+	border: 1px solid #D4D4D4 !important;
 	border-radius: 8px;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 /* Context menu */
 .monaco-workbench .context-view .monaco-menu {
-	background: #252525 !important;
-	border: 1px solid #3E3E3E !important;
+	background: #FFFFFF !important;
+	border: 1px solid #D4D4D4 !important;
 	border-radius: 8px;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 .monaco-workbench .context-view .monaco-menu .monaco-action-bar .action-item:hover {
-	background: #2D2D2D !important;
+	background: #F0F0F0 !important;
 	border-radius: 4px;
 }
 
 /* Notification */
 .monaco-workbench .notifications-toasts .notification-toast,
 .monaco-workbench .notifications-center .notification-list-item {
-	background: #252525 !important;
-	border: 1px solid #3E3E3E !important;
+	background: #FFFFFF !important;
+	border: 1px solid #D4D4D4 !important;
 	border-radius: 8px;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 /* Quick input */
 .monaco-workbench .quick-input-widget {
-	background: #252525 !important;
-	border: 1px solid #3E3E3E !important;
+	background: #FFFFFF !important;
+	border: 1px solid #D4D4D4 !important;
 	border-radius: 12px;
-	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 /* Badge */
@@ -993,4 +1015,65 @@ body {
 /* Editor adjusts for sidebar */
 .monaco-workbench .part.editor {
 	left: auto !important;
+}
+
+
+/* Auxiliary Bar (Right Sidebar) - use theme color */
+.monaco-workbench .part.auxiliarybar {
+	background: var(--vscode-sideBar-background) !important;
+}
+
+.monaco-workbench .part.auxiliarybar > .content {
+	background: var(--vscode-sideBar-background) !important;
+}
+
+.monaco-workbench .part.auxiliarybar > .content .monaco-editor,
+.monaco-workbench .part.auxiliarybar > .content .monaco-editor .margin,
+.monaco-workbench .part.auxiliarybar > .content .monaco-editor .monaco-editor-background {
+	background-color: var(--vscode-sideBar-background) !important;
+}
+
+.monaco-workbench .part.auxiliarybar .pane-body {
+	background: var(--vscode-sideBar-background) !important;
+}
+
+/* Text colors for auxiliary bar */
+.monaco-workbench .part.auxiliarybar,
+.monaco-workbench .part.auxiliarybar .monaco-editor,
+.monaco-workbench .part.auxiliarybar .pane-body {
+	color: var(--vscode-sideBar-foreground) !important;
+}
+
+
+/* Primary Sidebar (Left) - use theme color */
+.monaco-workbench .part.sidebar {
+	background: var(--vscode-sideBar-background) !important;
+	border-right: 1px solid var(--vscode-sideBar-border) !important;
+}
+
+.monaco-workbench .part.sidebar > .content {
+	background: var(--vscode-sideBar-background) !important;
+}
+
+.monaco-workbench .part.sidebar .monaco-list,
+.monaco-workbench .part.sidebar .monaco-list-rows {
+	background: var(--vscode-sideBar-background) !important;
+}
+
+.monaco-workbench .part.sidebar .pane-body {
+	background: var(--vscode-sideBar-background) !important;
+}
+
+.monaco-workbench .part.sidebar .monaco-editor,
+.monaco-workbench .part.sidebar .monaco-editor .margin,
+.monaco-workbench .part.sidebar .monaco-editor .monaco-editor-background {
+	background-color: var(--vscode-sideBar-background) !important;
+}
+
+/* Text colors for sidebar */
+.monaco-workbench .part.sidebar,
+.monaco-workbench .part.sidebar .monaco-editor,
+.monaco-workbench .part.sidebar .pane-body,
+.monaco-workbench .part.sidebar .monaco-list {
+	color: var(--vscode-sideBar-foreground) !important;
 }

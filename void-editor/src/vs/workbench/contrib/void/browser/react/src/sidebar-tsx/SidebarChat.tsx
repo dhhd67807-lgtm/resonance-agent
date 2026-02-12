@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------*/
 
 import React, { ButtonHTMLAttributes, FormEvent, FormHTMLAttributes, Fragment, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion } from 'motion/react';
 
 
 import { useAccessor, useChatThreadsState, useChatThreadsStreamState, useSettingsState, useActiveURI, useCommandBarState, useFullChatThreadsStreamState } from '../util/services.js';
@@ -12,6 +13,8 @@ import { ScrollType } from '../../../../../../../editor/common/editorCommon.js';
 import { ChatMarkdownRender, ChatMessageLocation, getApplyBoxId } from '../markdown/ChatMarkdownRender.js';
 import { URI } from '../../../../../../../base/common/uri.js';
 import { IDisposable } from '../../../../../../../base/common/lifecycle.js';
+import { getIconClasses } from '../../../../../../../editor/common/services/getIconClasses.js';
+import { FileKind } from '../../../../../../../platform/files/common/files.js';
 import { ErrorDisplay } from './ErrorDisplay.js';
 import { BlockCode, TextAreaFns, VoidCustomDropdownBox, VoidInputBox2, VoidSlider, VoidSwitch, VoidDiffEditor } from '../util/inputs.js';
 import { ModelDropdown, } from '../void-settings-tsx/ModelDropdown.js';
@@ -94,6 +97,44 @@ const IconSquare = ({ size, className = '' }: { size: number, className?: string
 		>
 			<rect x="2" y="2" width="20" height="20" rx="4" ry="4" />
 		</svg>
+	);
+};
+
+// Component to render VS Code file icons based on filename
+const FileIconSpan = ({ filename }: { filename: string }) => {
+	const accessor = useAccessor();
+	const modelService = accessor.get('IModelService');
+	const languageService = accessor.get('ILanguageService');
+	
+	// Create a URI from the filename to get proper icon classes
+	const uri = URI.file(filename);
+	const iconClasses = getIconClasses(modelService, languageService, uri, FileKind.FILE);
+	
+	return (
+		<span 
+			className={`monaco-icon-label ${iconClasses.join(' ')}`}
+			style={{ 
+				display: 'inline-flex',
+				alignItems: 'center',
+				flexShrink: 0,
+			}}
+		>
+			<span 
+				className="monaco-icon-label-container"
+				style={{
+					display: 'inline-flex',
+					alignItems: 'center',
+				}}
+			>
+				<span 
+					className="monaco-icon-name-container"
+					style={{
+						display: 'inline-flex',
+						alignItems: 'center',
+					}}
+				/>
+			</span>
+		</span>
 	);
 };
 
@@ -766,6 +807,7 @@ type ToolHeaderParams = {
 	info?: string;
 	desc1Info?: string;
 	isRejected?: boolean;
+	isRunning?: boolean;
 	numResults?: number;
 	hasNextPage?: boolean;
 	children?: React.ReactNode;
@@ -775,6 +817,8 @@ type ToolHeaderParams = {
 	isOpen?: boolean;
 	className?: string;
 	badgeColor?: string;
+	linesAdded?: number;
+	linesDeleted?: number;
 }
 
 const ToolHeaderWrapper = ({
@@ -794,35 +838,18 @@ const ToolHeaderWrapper = ({
 	desc2OnClick,
 	isOpen,
 	isRejected,
+	isRunning,
 	className, // applies to the main content
-	badgeColor = '#C71585', // default pink color
+	badgeColor = '#4ADE80', // Green color for terminal
+	linesAdded,
+	linesDeleted,
 }: ToolHeaderParams) => {
 
-	// Always expanded - no toggle state
 	const isExpanded = true
-
-	const isDropdown = false // Disabled dropdown functionality
+	const isDropdown = false
 	const isClickable = !!onClick
-
 	const isDesc1Clickable = !!desc1OnClick
-
-	// Shimmer animation using inline styles - only run when task is in progress
-	const [shimmerPosition, setShimmerPosition] = React.useState(200);
-	// Task is complete when there's ANY status icon (success, error, or rejected)
 	const isTaskComplete = isError || isRejected || (!isError && !isRejected);
-
-	React.useEffect(() => {
-		// Only animate if task is NOT complete (no status icon yet, or still running)
-		if (isTaskComplete) return;
-		
-		const interval = setInterval(() => {
-			setShimmerPosition(prev => {
-				if (prev <= -200) return 200;
-				return prev - 2;
-			});
-		}, 20);
-		return () => clearInterval(interval);
-	}); // No dependency array - runs on every render
 
 	// Status icon component
 	const StatusIcon = () => {
@@ -837,73 +864,154 @@ const ToolHeaderWrapper = ({
 		if (isRejected) {
 			return (
 				<Ban
-					className='text-void-fg-4 opacity-90 flex-shrink-0'
+					className='text-void-fg-4 opacity-70 flex-shrink-0'
 					size={16}
 				/>
 			);
 		}
-		// No icon for success - just return null
 		return null;
 	};
 
-	return (<div className='flex flex-col gap-y-1'>
-		{/* No box - just plain text with opacity */}
-		<div className={`w-full flex items-center justify-between py-1`}>
-			{/* left - only title, no box */}
-			<div className='flex items-center gap-x-2 overflow-hidden flex-1'>
-				{/* title with shimmer effect (only when task incomplete) */}
-				<span 
-					className={`flex-shrink-0 text-[13px] font-normal
-						${isClickable ? 'cursor-pointer hover:brightness-125 transition-all duration-150' : ''}
-					`}
-					style={isTaskComplete ? {
-						// No shimmer when complete - whiter color with higher opacity
-						fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
-						letterSpacing: '-0.01em',
-						color: '#B0B0B0',
-						opacity: 0.85,
-					} : {
-						// Shimmer when in progress
-						fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
-						letterSpacing: '-0.01em',
-						background: 'linear-gradient(110deg, #808080 0%, #808080 35%, #fff 50%, #808080 75%, #808080 100%)',
-						backgroundSize: '200% 100%',
-						backgroundPosition: `${shimmerPosition}% 0`,
-						WebkitBackgroundClip: 'text',
-						WebkitTextFillColor: 'transparent',
-						backgroundClip: 'text',
-					}}
-					onClick={() => {
-						if (onClick) { onClick(); }
-					}}
-				>
-					{title}
-				</span>
-				
-				{/* desc1 hidden - filename already in title */}
-			</div>
+	// Check if filename is short (7 characters or less)
+	// Don't show badge for search queries (they start with quotes)
+	const isSearchQuery = desc1 && typeof desc1 === 'string' && desc1.startsWith('"');
+	// Always show filename on same line (removed length check)
+	const isShortFilename = desc1 && !isSearchQuery;
 
-			{/* right - status icon and info */}
-			<div className="flex items-center gap-x-2 flex-shrink-0">
-				{info && <CircleEllipsis
-					className='text-void-fg-4 opacity-60 flex-shrink-0'
-					size={12}
-					data-tooltip-id='void-tooltip'
-					data-tooltip-content={info}
-					data-tooltip-place='top-end'
-				/>}
+	return (<div className='flex flex-col gap-y-0'>
+		{/* Clean minimal tool header - Trae-style white theme */}
+		<div 
+			className={`w-full flex flex-col transition-all duration-200
+				${isClickable ? 'cursor-pointer hover:bg-[rgba(0,0,0,0.015)]' : ''}
+			`}
+			style={{
+				background: '#FFFFFF',
+				border: '1px solid #E8E8E8',
+				borderRadius: children ? '8px 8px 0 0' : '8px',
+				boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+			}}
+			onClick={() => {
+				if (onClick) { onClick(); }
+			}}
+		>
+			{/* First line: Action and status (with short filename if applicable) */}
+			<div className="flex items-center gap-x-2 px-3 py-2">
+				{/* Title text - action only (e.g., "Reading", "Editing") with shimmer when running */}
+				{isRunning ? (
+					<motion.span 
+						className="flex-shrink-0 text-[12px] font-medium"
+						style={{
+							background: 'linear-gradient(110deg, #9CA3AF 0%, #1A1A1A 50%, #9CA3AF 100%)',
+							backgroundSize: '200% 100%',
+							WebkitBackgroundClip: 'text',
+							WebkitTextFillColor: 'transparent',
+							backgroundClip: 'text',
+							color: 'transparent',
+							fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+							letterSpacing: '-0.01em',
+							fontWeight: 500,
+						}}
+						initial={{ backgroundPosition: '200% 0' }}
+						animate={{ backgroundPosition: '-200% 0' }}
+						transition={{
+							repeat: Infinity,
+							duration: 2,
+							ease: 'linear',
+						}}
+					>
+						{title}
+					</motion.span>
+				) : (
+					<span 
+						className="flex-shrink-0 text-[12px] font-medium"
+						style={{
+							color: '#1A1A1A',
+							fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+							letterSpacing: '-0.01em',
+							fontWeight: 500,
+						}}
+					>
+						{title}
+					</span>
+				)}
 
-				<StatusIcon />
+				{/* Filename with icon on same line */}
+				{isShortFilename && (
+					<span 
+						className={`inline-flex items-center gap-x-1 text-[11px] font-normal ${desc1OnClick ? 'cursor-pointer hover:opacity-70' : ''}`}
+						style={{
+							fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+							letterSpacing: '0em',
+							color: '#6B6B6B',
+						}}
+						onClick={desc1OnClick}
+					>
+						<FileIconSpan filename={desc1} />
+						<span>
+							{desc1}
+						</span>
+					</span>
+				)}
 
-				{desc2 && <span className="text-void-fg-4 text-xs" onClick={desc2OnClick}>
-					{desc2}
-				</span>}
-				{numResults !== undefined && (
-					<span className="text-void-fg-4 text-xs ml-auto mr-1">
-						{`${numResults}${hasNextPage ? '+' : ''} result${numResults !== 1 ? 's' : ''}`}
+				{/* Line count badges */}
+				{(linesAdded !== undefined && linesAdded > 0) && (
+					<span 
+						className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded"
+						style={{
+							background: '#DCFCE7',
+							color: '#166534',
+							fontFamily: 'SF Mono, Monaco, Consolas, monospace',
+						}}
+					>
+						+{linesAdded}
+					</span>
+				)}
+				{(linesDeleted !== undefined && linesDeleted > 0) && (
+					<span 
+						className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded"
+						style={{
+							background: '#FEE2E2',
+							color: '#991B1B',
+							fontFamily: 'SF Mono, Monaco, Consolas, monospace',
+						}}
+					>
+						-{linesDeleted}
+					</span>
+				)}
+
+				{/* Spacer */}
+				<div className="flex-1" />
+
+				{/* Right side - status and info */}
+				<div className="flex items-center gap-x-2 flex-shrink-0">
+					{info && <CircleEllipsis
+						className='opacity-40 flex-shrink-0 hover:opacity-70 transition-opacity'
+						size={13}
+						style={{ color: '#9CA3AF' }}
+						data-tooltip-id='void-tooltip'
+						data-tooltip-content={info}
+						data-tooltip-place='top-end'
+					/>}
+
+					<StatusIcon />
+
+					{desc2 && <span 
+						className="text-xs opacity-50 hover:opacity-80 transition-opacity cursor-pointer" 
+						style={{ color: '#9CA3AF' }}
+						onClick={desc2OnClick}
+					>
+						{desc2}
+					</span>}
+					{numResults !== undefined && (
+						<span 
+							className="text-xs ml-auto opacity-60"
+							style={{ color: '#9CA3AF' }}
+						>
+							{`${numResults}${hasNextPage ? '+' : ''} result${numResults !== 1 ? 's' : ''}`}
 					</span>
 				)}
 			</div>
+		</div>
 		</div>
 
 		{/* Children content - always shown */}
@@ -917,6 +1025,8 @@ const ToolHeaderWrapper = ({
 
 const EditTool = ({ toolMessage, threadId, messageIdx, content }: Parameters<ResultWrapper<'edit_file' | 'rewrite_file'>>[0] & { content: string }) => {
 	const accessor = useAccessor()
+	const commandService = accessor.get('ICommandService')
+	const voidModelService = accessor.get('IVoidModelService')
 	const isError = false
 	const isRejected = toolMessage.type === 'rejected'
 
@@ -928,18 +1038,95 @@ const EditTool = ({ toolMessage, threadId, messageIdx, content }: Parameters<Res
 	const { rawParams, params, name } = toolMessage
 	const desc1OnClick = () => voidOpenFileFn(params.uri, accessor)
 	const badgeColor = getFilenameBadgeColor(name as BuiltinToolName)
-	const componentParams: ToolHeaderParams = { title, desc1, desc1OnClick, desc1Info, isError, icon, isRejected, badgeColor }
+	
+	// Calculate line counts from the content
+	let linesAdded: number | undefined;
+	let linesDeleted: number | undefined;
+	
+	if (content && (toolMessage.type === 'success' || toolMessage.type === 'rejected' || toolMessage.type === 'running_now')) {
+		// Get original file content
+		const { model } = voidModelService.getModel(params.uri);
+		if (model) {
+			const originalContent = model.getValue();
+			const originalLines = originalContent.split('\n');
+			
+			if (toolMessage.name === 'rewrite_file') {
+				// For rewrite, the content is the new file content
+				const newLines = content.split('\n');
+				const diff = newLines.length - originalLines.length;
+				
+				// Only show the net change
+				if (diff > 0) {
+					linesAdded = diff;
+				} else if (diff < 0) {
+					linesDeleted = Math.abs(diff);
+				}
+				// If diff === 0, don't show any badges
+			} else if (toolMessage.name === 'edit_file') {
+				// For edit_file, content contains search/replace blocks
+				// Parse the blocks to estimate changes
+				const blocks = content.split('<<<<<<< SEARCH');
+				let totalAdded = 0;
+				let totalDeleted = 0;
+				
+				for (const block of blocks) {
+					if (!block.trim()) continue;
+					
+					const parts = block.split('=======');
+					if (parts.length === 2) {
+						const searchPart = parts[0].trim();
+						const replacePart = parts[1].split('>>>>>>> REPLACE')[0].trim();
+						
+						const searchLines = searchPart.split('\n').length;
+						const replaceLines = replacePart.split('\n').length;
+						
+						const blockDiff = replaceLines - searchLines;
+						if (blockDiff > 0) {
+							totalAdded += blockDiff;
+						} else if (blockDiff < 0) {
+							totalDeleted += Math.abs(blockDiff);
+						}
+					}
+				}
+				
+				// Only show if there are actual changes
+				if (totalAdded > 0) {
+					linesAdded = totalAdded;
+				}
+				if (totalDeleted > 0) {
+					linesDeleted = totalDeleted;
+				}
+			}
+		}
+	}
+	
+	const componentParams: ToolHeaderParams = { 
+		title, 
+		desc1, 
+		desc1OnClick, 
+		desc1Info, 
+		isError, 
+		icon, 
+		isRejected, 
+		badgeColor,
+		linesAdded,
+		linesDeleted,
+	}
 
 
 	const editToolType = toolMessage.name === 'edit_file' ? 'diff' : 'rewrite'
-	if (toolMessage.type === 'running_now' || toolMessage.type === 'tool_request') {
-		componentParams.children = <ToolChildrenWrapper className='bg-void-bg-3'>
-			<EditToolChildren
-				uri={params.uri}
-				code={content}
-				type={editToolType}
-			/>
-		</ToolChildrenWrapper>
+	const isRunning = toolMessage.type === 'running_now' || toolMessage.type === 'tool_request'
+	
+	// Open file in center editor when editing starts
+	useEffect(() => {
+		if (isRunning && params.uri) {
+			commandService.executeCommand('vscode.open', params.uri);
+		}
+	}, [isRunning, params.uri, commandService]);
+	
+	if (isRunning) {
+		componentParams.isRunning = true
+		// Don't show code preview in chat - it's being edited live in the center editor
 		// JumpToFileButton removed in favor of FileLinkText
 	}
 	else if (toolMessage.type === 'success' || toolMessage.type === 'rejected' || toolMessage.type === 'tool_error') {
@@ -957,14 +1144,7 @@ const EditTool = ({ toolMessage, threadId, messageIdx, content }: Parameters<Res
 			threadId={threadId}
 		/>
 
-		// add children
-		componentParams.children = <ToolChildrenWrapper className='bg-void-bg-3'>
-			<EditToolChildren
-				uri={params.uri}
-				code={content}
-				type={editToolType}
-			/>
-		</ToolChildrenWrapper>
+		// Don't show code preview in chat when complete - changes are in the editor
 
 		if (toolMessage.type === 'success' || toolMessage.type === 'rejected') {
 			const { result } = toolMessage
@@ -1344,6 +1524,14 @@ const AssistantMessageComponent = ({ chatMessage, isCheckpointGhost, isCommitted
 	const isDoneReasoning = !!chatMessage.displayContent
 	const thread = chatThreadsService.getCurrentThread()
 
+	// Debug logging
+	console.log('[AssistantMessage]', {
+		messageIdx,
+		hasReasoning,
+		reasoningLength: reasoningStr?.length || 0,
+		displayContentLength: chatMessage.displayContent?.length || 0,
+		isCommitted
+	})
 
 	const chatMessageLocation: ChatMessageLocation = {
 		threadId: thread.id,
@@ -1354,7 +1542,7 @@ const AssistantMessageComponent = ({ chatMessage, isCheckpointGhost, isCommitted
 	if (isEmpty) return null
 
 	return <>
-		{/* reasoning token */}
+		{/* reasoning token - always show if reasoning exists */}
 		{hasReasoning &&
 			<div className={`${isCheckpointGhost ? 'opacity-50' : ''}`}>
 				<ReasoningWrapper isDoneReasoning={isDoneReasoning} isStreaming={!isCommitted}>
@@ -1391,11 +1579,14 @@ const ReasoningWrapper = ({ isDoneReasoning, isStreaming, children }: { isDoneRe
 	const [isExpanded, setIsExpanded] = useState(false)
 
 	return (
-		<div className="my-2 border border-void-border-3 rounded-lg overflow-hidden bg-void-bg-3">
+		<div className="my-2 border border-void-border-3 rounded-lg overflow-hidden" style={{ background: 'transparent' }}>
 			{/* Header */}
 			<div
-				className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-void-bg-2 transition-colors"
+				className="flex items-center justify-between px-3 py-2 cursor-pointer transition-colors"
+				style={{ background: '#F9FAFB' }}
 				onClick={() => setIsExpanded(!isExpanded)}
+				onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+				onMouseLeave={(e) => e.currentTarget.style.background = '#F9FAFB'}
 			>
 				<div className="flex items-center gap-2">
 					<span className="text-void-fg-2 text-sm font-medium">
@@ -1410,7 +1601,7 @@ const ReasoningWrapper = ({ isDoneReasoning, isStreaming, children }: { isDoneRe
 
 			{/* Content */}
 			{isExpanded && (
-				<div className="px-3 py-2 border-t border-void-border-3 text-void-fg-3 text-sm">
+				<div className="px-3 py-2 border-t border-void-border-3 text-void-fg-3 text-sm" style={{ background: 'transparent' }}>
 					{children}
 				</div>
 			)}
@@ -1432,79 +1623,79 @@ const loadingTitleWrapper = (item: React.ReactNode): React.ReactNode => {
 
 const titleOfBuiltinToolName = {
 	'read_file': { 
-		done: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Eye size={14} />Reading <span style={{opacity: 0.5}}>{filename || 'file'}</span></span>, 
-		proposed: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Eye size={14} />Reading <span style={{opacity: 0.5}}>{filename || 'file'}</span></span>, 
-		running: (filename?: string) => loadingTitleWrapper(<span className="flex items-center gap-x-1.5 font-bold"><Eye size={14} />Reading <span style={{opacity: 0.5}}>{filename || 'file'}</span></span>) 
+		done: (filename?: string) => 'Reading', 
+		proposed: (filename?: string) => 'Reading', 
+		running: (filename?: string) => loadingTitleWrapper('Reading') 
 	},
 	'ls_dir': { 
-		done: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Folder size={14} />Inspected <span style={{opacity: 0.5}}>{filename || 'folder'}</span></span>, 
-		proposed: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Folder size={14} />Inspect <span style={{opacity: 0.5}}>{filename || 'folder'}</span></span>, 
-		running: (filename?: string) => loadingTitleWrapper(<span className="flex items-center gap-x-1.5 font-bold"><Folder size={14} />Inspecting <span style={{opacity: 0.5}}>{filename || 'folder'}</span></span>) 
+		done: (filename?: string) => 'Inspected', 
+		proposed: (filename?: string) => 'Inspect', 
+		running: (filename?: string) => loadingTitleWrapper('Inspecting') 
 	},
 	'get_dir_tree': { 
-		done: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Folder size={14} />Inspected <span style={{opacity: 0.5}}>{filename || 'folder tree'}</span></span>, 
-		proposed: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Folder size={14} />Inspect <span style={{opacity: 0.5}}>{filename || 'folder tree'}</span></span>, 
-		running: (filename?: string) => loadingTitleWrapper(<span className="flex items-center gap-x-1.5 font-bold"><Folder size={14} />Inspecting <span style={{opacity: 0.5}}>{filename || 'folder tree'}</span></span>) 
+		done: (filename?: string) => 'Inspected', 
+		proposed: (filename?: string) => 'Inspect', 
+		running: (filename?: string) => loadingTitleWrapper('Inspecting') 
 	},
 	'search_pathnames_only': { 
-		done: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Search size={14} />Searched by file name</span>, 
-		proposed: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Search size={14} />Search by file name</span>, 
-		running: (filename?: string) => loadingTitleWrapper(<span className="flex items-center gap-x-1.5 font-bold"><Search size={14} />Searching by file name</span>) 
+		done: (filename?: string) => 'Searched by file name', 
+		proposed: (filename?: string) => 'Search by file name', 
+		running: (filename?: string) => loadingTitleWrapper('Searching by file name') 
 	},
 	'search_for_files': { 
-		done: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Search size={14} />Searched</span>, 
-		proposed: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Search size={14} />Search</span>, 
-		running: (filename?: string) => loadingTitleWrapper(<span className="flex items-center gap-x-1.5 font-bold"><Search size={14} />Searching</span>) 
+		done: (filename?: string) => 'Searched', 
+		proposed: (filename?: string) => 'Search', 
+		running: (filename?: string) => loadingTitleWrapper('Searching') 
 	},
 	'create_file_or_folder': { 
-		done: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><FilePlus size={14} />Created <span style={{opacity: 0.5}}>{filename || ''}</span></span>, 
-		proposed: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><FilePlus size={14} />Create <span style={{opacity: 0.5}}>{filename || ''}</span></span>, 
-		running: (filename?: string) => loadingTitleWrapper(<span className="flex items-center gap-x-1.5 font-bold"><FilePlus size={14} />Creating <span style={{opacity: 0.5}}>{filename || ''}</span></span>) 
+		done: (filename?: string) => 'Created', 
+		proposed: (filename?: string) => 'Create', 
+		running: (filename?: string) => loadingTitleWrapper('Creating') 
 	},
 	'delete_file_or_folder': { 
-		done: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Trash2 size={14} />Deleted <span style={{opacity: 0.5}}>{filename || ''}</span></span>, 
-		proposed: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Trash2 size={14} />Delete <span style={{opacity: 0.5}}>{filename || ''}</span></span>, 
-		running: (filename?: string) => loadingTitleWrapper(<span className="flex items-center gap-x-1.5 font-bold"><Trash2 size={14} />Deleting <span style={{opacity: 0.5}}>{filename || ''}</span></span>) 
+		done: (filename?: string) => 'Deleted', 
+		proposed: (filename?: string) => 'Delete', 
+		running: (filename?: string) => loadingTitleWrapper('Deleting') 
 	},
 	'edit_file': { 
-		done: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Check size={14} />Edited <span style={{opacity: 0.5}}>{filename || 'file'}</span></span>, 
-		proposed: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Pencil size={14} />Editing <span style={{opacity: 0.5}}>{filename || 'file'}</span></span>, 
-		running: (filename?: string) => loadingTitleWrapper(<span className="flex items-center gap-x-1.5 font-bold"><Pencil size={14} />Editing <span style={{opacity: 0.5}}>{filename || 'file'}</span></span>) 
+		done: (filename?: string) => 'Edited', 
+		proposed: (filename?: string) => 'Editing', 
+		running: (filename?: string) => loadingTitleWrapper('Editing') 
 	},
 	'rewrite_file': { 
-		done: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Check size={14} />Wrote <span style={{opacity: 0.5}}>{filename || 'file'}</span></span>, 
-		proposed: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><FileEdit size={14} />Writing <span style={{opacity: 0.5}}>{filename || 'file'}</span></span>, 
-		running: (filename?: string) => loadingTitleWrapper(<span className="flex items-center gap-x-1.5 font-bold"><FileEdit size={14} />Writing <span style={{opacity: 0.5}}>{filename || 'file'}</span></span>) 
+		done: (filename?: string) => 'Wrote', 
+		proposed: (filename?: string) => 'Writing', 
+		running: (filename?: string) => loadingTitleWrapper('Writing') 
 	},
 	'run_command': { 
-		done: (command?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Check size={14} /><span style={{opacity: 0.5}}>{command || 'terminal command'}</span></span>, 
-		proposed: (command?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Terminal size={14} /><span style={{opacity: 0.5}}>{command || 'terminal command'}</span></span>, 
-		running: (command?: string) => loadingTitleWrapper(<span className="flex items-center gap-x-1.5 font-bold"><Terminal size={14} /><span style={{opacity: 0.5}}>{command || 'terminal command'}</span></span>) 
+		done: (command?: string) => 'Ran command', 
+		proposed: (command?: string) => 'Run command', 
+		running: (command?: string) => loadingTitleWrapper('Running command') 
 	},
 	'run_persistent_command': { 
-		done: (command?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Check size={14} /><span style={{opacity: 0.5}}>{command || 'terminal command'}</span></span>, 
-		proposed: (command?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Terminal size={14} /><span style={{opacity: 0.5}}>{command || 'terminal command'}</span></span>, 
-		running: (command?: string) => loadingTitleWrapper(<span className="flex items-center gap-x-1.5 font-bold"><Terminal size={14} /><span style={{opacity: 0.5}}>{command || 'terminal command'}</span></span>) 
+		done: (command?: string) => 'Ran command', 
+		proposed: (command?: string) => 'Run command', 
+		running: (command?: string) => loadingTitleWrapper('Running command') 
 	},
 	'open_persistent_terminal': { 
-		done: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Terminal size={14} />Opened terminal</span>, 
-		proposed: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Terminal size={14} />Open terminal</span>, 
-		running: (filename?: string) => loadingTitleWrapper(<span className="flex items-center gap-x-1.5 font-bold"><Terminal size={14} />Opening terminal</span>) 
+		done: (filename?: string) => 'Opened terminal', 
+		proposed: (filename?: string) => 'Open terminal', 
+		running: (filename?: string) => loadingTitleWrapper('Opening terminal') 
 	},
 	'kill_persistent_terminal': { 
-		done: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><X size={14} />Killed terminal</span>, 
-		proposed: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><X size={14} />Kill terminal</span>, 
-		running: (filename?: string) => loadingTitleWrapper(<span className="flex items-center gap-x-1.5 font-bold"><X size={14} />Killing terminal</span>) 
+		done: (filename?: string) => 'Killed terminal', 
+		proposed: (filename?: string) => 'Kill terminal', 
+		running: (filename?: string) => loadingTitleWrapper('Killing terminal') 
 	},
 	'read_lint_errors': { 
-		done: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Bug size={14} />Read lint errors</span>, 
-		proposed: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Bug size={14} />Read lint errors</span>, 
-		running: (filename?: string) => loadingTitleWrapper(<span className="flex items-center gap-x-1.5 font-bold"><Bug size={14} />Reading lint errors</span>) 
+		done: (filename?: string) => 'Read lint errors', 
+		proposed: (filename?: string) => 'Read lint errors', 
+		running: (filename?: string) => loadingTitleWrapper('Reading lint errors') 
 	},
 	'search_in_file': { 
-		done: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Search size={14} />Searched in <span style={{opacity: 0.5}}>{filename || 'file'}</span></span>, 
-		proposed: (filename?: string) => <span className="flex items-center gap-x-1.5 font-bold"><Search size={14} />Search in <span style={{opacity: 0.5}}>{filename || 'file'}</span></span>, 
-		running: (filename?: string) => loadingTitleWrapper(<span className="flex items-center gap-x-1.5 font-bold"><Search size={14} />Searching in <span style={{opacity: 0.5}}>{filename || 'file'}</span></span>) 
+		done: (filename?: string) => 'Searched in file', 
+		proposed: (filename?: string) => 'Search in file', 
+		running: (filename?: string) => loadingTitleWrapper('Searching in file') 
 	},
 } as const satisfies Record<BuiltinToolName, { done: (filename?: string) => any, proposed: (filename?: string) => any, running: (filename?: string) => any }>
 
@@ -1755,13 +1946,29 @@ const ToolRequestAcceptRejectButtons = ({ toolName }: { toolName: ToolName }) =>
 
 export const ToolChildrenWrapper = ({ children, className }: { children: React.ReactNode, className?: string }) => {
 	return <div className={`${className ? className : ''} cursor-default select-none`}>
-		<div className='px-2 min-w-full overflow-hidden'>
+		<div 
+			className='rounded-b-lg overflow-hidden'
+			style={{
+				backgroundColor: '#FFFFFF',
+				border: '1px solid #E8E8E8',
+				borderTop: 'none',
+				boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+			}}
+		>
 			{children}
 		</div>
 	</div>
 }
 export const CodeChildren = ({ children, className }: { children: React.ReactNode, className?: string }) => {
-	return <div className={`${className ?? ''} p-1 rounded-sm overflow-auto text-sm`}>
+	return <div 
+		className={`${className ?? ''} px-3 py-2 overflow-auto text-[11px] font-mono`}
+		style={{
+			backgroundColor: '#FAFAFA',
+			color: '#1A1A1A',
+			lineHeight: '1.6',
+			fontFamily: '"SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
+		}}
+	>
 		<div className='!select-text cursor-auto'>
 			{children}
 		</div>
@@ -1790,7 +1997,13 @@ const EditToolChildren = ({ uri, code, type }: { uri: URI | undefined, code: str
 		<VoidDiffEditor uri={uri} searchReplaceBlocks={code} />
 		: <ChatMarkdownRender string={`\`\`\`\n${code}\n\`\`\``} codeURI={uri} chatMessageLocation={undefined} />
 
-	return <div className='!select-text cursor-auto'>
+	return <div 
+		className='!select-text cursor-auto px-3 py-2'
+		style={{
+			backgroundColor: '#FAFAFA',
+			color: '#1A1A1A',
+		}}
+	>
 		<SmallProseWrapper>
 			{content}
 		</SmallProseWrapper>
@@ -1800,7 +2013,16 @@ const EditToolChildren = ({ uri, code, type }: { uri: URI | undefined, code: str
 
 
 const LintErrorChildren = ({ lintErrors }: { lintErrors: LintErrorItem[] }) => {
-	return <div className="text-xs text-void-fg-4 opacity-80 border-l-2 border-void-warning px-2 py-0.5 flex flex-col gap-0.5 overflow-x-auto whitespace-nowrap">
+	return <div 
+		className="text-xs px-3.5 py-2.5 flex flex-col gap-1 overflow-x-auto rounded-b-lg"
+		style={{
+			backgroundColor: '#FEF2F2',
+			color: '#991B1B',
+			border: '1px solid #E8E8E8',
+			borderTop: 'none',
+			borderLeft: '2px solid #F87171',
+		}}
+	>
 		{lintErrors.map((error, i) => (
 			<div key={i}>Lines {error.startLineNumber}-{error.endLineNumber}: {error.message}</div>
 		))}
@@ -1811,21 +2033,40 @@ const BottomChildren = ({ children, title }: { children: React.ReactNode, title:
 	const [isOpen, setIsOpen] = useState(false);
 	if (!children) return null;
 	return (
-		<div className="w-full px-2 mt-0.5">
+		<div className="w-full mt-2">
 			<div
-				className={`flex items-center cursor-pointer select-none transition-colors duration-150 pl-0 py-0.5 rounded group`}
+				className={`flex items-center cursor-pointer select-none transition-all duration-150 px-3.5 py-2 rounded-lg`}
 				onClick={() => setIsOpen(o => !o)}
-				style={{ background: 'none' }}
+				style={{ 
+					background: '#F0F0F0',
+					border: '1px solid #E8E8E8',
+				}}
+				onMouseEnter={(e) => e.currentTarget.style.background = '#E8E8E8'}
+				onMouseLeave={(e) => e.currentTarget.style.background = '#F0F0F0'}
 			>
 				<ChevronRight
-					className={`mr-1 h-3 w-3 flex-shrink-0 transition-transform duration-100 text-void-fg-4 group-hover:text-void-fg-3 ${isOpen ? 'rotate-90' : ''}`}
+					className={`mr-2 h-3 w-3 flex-shrink-0 transition-transform duration-150 ${isOpen ? 'rotate-90' : ''}`}
+					style={{ color: 'rgba(31, 31, 31, 0.5)' }}
 				/>
-				<span className="font-medium text-void-fg-4 group-hover:text-void-fg-3 text-xs">{title}</span>
+				<span 
+					className="font-normal text-xs"
+					style={{ color: 'rgba(31, 31, 31, 0.7)' }}
+				>
+					{title}
+				</span>
 			</div>
 			<div
-				className={`overflow-hidden transition-all duration-200 ease-in-out ${isOpen ? 'opacity-100' : 'max-h-0 opacity-0'} text-xs pl-4`}
+				className={`overflow-hidden transition-all duration-200 ease-in-out ${isOpen ? 'opacity-100 mt-2' : 'max-h-0 opacity-0'}`}
 			>
-				<div className="overflow-x-auto text-void-fg-4 opacity-90 border-l-2 border-void-warning px-2 py-0.5">
+				<div 
+					className="overflow-x-auto text-xs px-3.5 py-2.5 rounded-lg"
+					style={{
+						backgroundColor: '#FEF2F2',
+						color: '#991B1B',
+						border: '1px solid #E8E8E8',
+						borderLeft: '2px solid #F87171',
+					}}
+				>
 					{children}
 				</div>
 			</div>
@@ -1855,7 +2096,7 @@ const InvalidTool = ({ toolName, message, mcpServerName }: { toolName: ToolName,
 	const componentParams: ToolHeaderParams = { title, desc1, isError, icon }
 
 	componentParams.children = <ToolChildrenWrapper>
-		<CodeChildren className='bg-void-bg-3'>
+		<CodeChildren>
 			{message}
 		</CodeChildren>
 	</ToolChildrenWrapper>
@@ -1945,12 +2186,20 @@ const CommandTool = ({ toolMessage, type, threadId }: { threadId: string } & ({
 			componentParams.info = persistentTerminalNameOfId(toolMessage.params.persistentTerminalId)
 		}
 
-		// Only show output if there is actual content (for persistent commands)
-		// Non-persistent commands return empty string and run in visible terminal
-		if (msg.trim()) {
+		// Filter out info messages about terminal execution
+		const infoMessages = [
+			'Running in background terminal',
+			'Terminal command is running',
+			'given outputs are the results'
+		];
+		const hasInfoMessage = infoMessages.some(info => msg.includes(info));
+
+		// Only show output if there is actual content and it's not just an info message
+		if (msg.trim() && !hasInfoMessage) {
 			// Detect language from command for better syntax highlighting
 			const command = toolMessage.params.command.toLowerCase();
 			let language = 'plaintext';
+			
 			if (command.includes('python') || command.endsWith('.py')) {
 				language = 'python';
 			} else if (command.includes('node') || command.includes('npm') || command.endsWith('.js') || command.endsWith('.ts')) {
@@ -1965,16 +2214,45 @@ const CommandTool = ({ toolMessage, type, threadId }: { threadId: string } & ({
 				language = 'rust';
 			}
 
-			// Show output in a compact box with syntax highlighting
-			componentParams.children = <div className='mt-1 rounded overflow-hidden border border-[#2a2a2a]' style={{ backgroundColor: '#000000' }}>
-				<div className='!select-text cursor-auto px-2 py-1.5 text-sm'>
-					<BlockCode initValue={`${msg.trim()}`} language={language} noBg={true} />
-				</div>
-			</div>
+			// Show full command + output with clean design
+			const fullOutput = `$ ${toolMessage.params.command}\n\n${msg.trim()}`;
+			
+			componentParams.children = <ToolChildrenWrapper>
+				<CodeChildren>
+					<BlockCode initValue={fullOutput} language={language} noBg={true} />
+				</CodeChildren>
+			</ToolChildrenWrapper>
 		}
 	}
 	else if (toolMessage.type === 'tool_error') {
 		const { result } = toolMessage
+		
+		// Show the command that was run
+		const command = toolMessage.params.command;
+		let language = 'plaintext';
+		
+		if (command.toLowerCase().includes('python') || command.toLowerCase().endsWith('.py')) {
+			language = 'python';
+		} else if (command.toLowerCase().includes('node') || command.toLowerCase().includes('npm') || command.toLowerCase().endsWith('.js') || command.toLowerCase().endsWith('.ts')) {
+			language = 'javascript';
+		} else if (command.toLowerCase().includes('ruby') || command.toLowerCase().endsWith('.rb')) {
+			language = 'ruby';
+		} else if (command.toLowerCase().includes('java') || command.toLowerCase().endsWith('.java')) {
+			language = 'java';
+		} else if (command.toLowerCase().includes('go run') || command.toLowerCase().endsWith('.go')) {
+			language = 'go';
+		} else if (command.toLowerCase().includes('cargo') || command.toLowerCase().endsWith('.rs')) {
+			language = 'rust';
+		}
+		
+		// Show command in main area
+		componentParams.children = <ToolChildrenWrapper>
+			<CodeChildren>
+				<BlockCode initValue={`$ ${command}`} language={language} noBg={true} />
+			</CodeChildren>
+		</ToolChildrenWrapper>
+		
+		// Show error in bottom area
 		componentParams.bottomChildren = <BottomChildren title='Error'>
 			<CodeChildren>
 				{result}
@@ -1982,8 +2260,13 @@ const CommandTool = ({ toolMessage, type, threadId }: { threadId: string } & ({
 		</BottomChildren>
 	}
 	else if (toolMessage.type === 'running_now') {
-		if (type === 'run_command')
-			componentParams.children = <div ref={divRef} className='relative h-[300px] text-sm' />
+		componentParams.isRunning = true
+		// Show a placeholder while command is running
+		componentParams.children = <ToolChildrenWrapper>
+			<CodeChildren>
+				<div className="text-[#6B6B6B] italic">Running command...</div>
+			</CodeChildren>
+		</ToolChildrenWrapper>
 	}
 	else if (toolMessage.type === 'rejected' || toolMessage.type === 'tool_request') {
 	}
@@ -2329,7 +2612,7 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: Res
 				componentParams.numResults = result.lines.length;
 				componentParams.children = result.lines.length === 0 ? undefined :
 					<ToolChildrenWrapper>
-						<CodeChildren className='bg-void-bg-3'>
+						<CodeChildren>
 							<pre className='font-mono whitespace-pre'>
 								{toolsService.stringOfResult['search_in_file'](params, result)}
 							</pre>
@@ -2979,6 +3262,7 @@ const EditToolSoFar = ({ toolCallSoFar, }: { toolCallSoFar: RawToolCallObj }) =>
 	if (!isABuiltinToolName(toolCallSoFar.name)) return null
 
 	const accessor = useAccessor()
+	const commandService = accessor.get('ICommandService')
 
 	const uri = toolCallSoFar.rawParams.uri ? URI.file(toolCallSoFar.rawParams.uri) : undefined
 	const filename = uri ? getBasename(uri.fsPath) : undefined
@@ -2995,19 +3279,20 @@ const EditToolSoFar = ({ toolCallSoFar, }: { toolCallSoFar: RawToolCallObj }) =>
 
 	const desc1OnClick = () => { uri && voidOpenFileFn(uri, accessor) }
 
-	// If URI has not been specified
+	// Open file in center editor when streaming starts
+	useEffect(() => {
+		if (uri && uriDone) {
+			commandService.executeCommand('vscode.open', uri);
+		}
+	}, [uri, uriDone, commandService]);
+
+	// Don't show code preview in chat - it's being edited live in the center editor
 	return <ToolHeaderWrapper
 		title={title}
 		desc1={desc1}
 		desc1OnClick={desc1OnClick}
-	>
-		<EditToolChildren
-			uri={uri}
-			code={toolCallSoFar.rawParams.search_replace_blocks ?? toolCallSoFar.rawParams.new_content ?? ''}
-			type={'rewrite'} // as it streams, show in rewrite format, don't make a diff editor
-		/>
-		<IconLoading />
-	</ToolHeaderWrapper>
+		isRunning={true}
+	/>
 
 }
 

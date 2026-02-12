@@ -28,6 +28,7 @@ import { IInstantiationService } from '../../../../platform/instantiation/common
 // import { IDisposable } from '../../../../base/common/lifecycle.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { IThemeService } from '../../../../platform/theme/common/themeService.js';
+import { FileAccess } from '../../../../base/common/network.js';
 import { IContextMenuService } from '../../../../platform/contextview/browser/contextView.js';
 import { IKeybindingService } from '../../../../platform/keybinding/common/keybinding.js';
 import { IOpenerService } from '../../../../platform/opener/common/opener.js';
@@ -35,7 +36,6 @@ import { ITelemetryService } from '../../../../platform/telemetry/common/telemet
 import { IHoverService } from '../../../../platform/hover/browser/hover.js';
 import { mountSidebar } from './react/out/sidebar-tsx/index.js';
 
-import { Codicon } from '../../../../base/common/codicons.js';
 import { Orientation } from '../../../../base/browser/ui/sash/sash.js';
 // import { IDisposable } from '../../../../base/common/lifecycle.js';
 import { toDisposable } from '../../../../base/common/lifecycle.js';
@@ -117,7 +117,7 @@ const container = viewContainerRegistry.registerViewContainer({
 	order: 1,
 
 	rejectAddedViews: true,
-	icon: Codicon.symbolMethod,
+	icon: FileAccess.asFileUri('vs/workbench/browser/parts/editor/media/letterpress-black.svg'),
 
 
 }, ViewContainerLocation.AuxiliaryBar, { doNotRegisterOpenCommand: true, isDefault: true });

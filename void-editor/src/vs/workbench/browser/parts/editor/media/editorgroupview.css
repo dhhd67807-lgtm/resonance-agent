@@ -55,7 +55,7 @@
 	width: 100%;
 	max-height: 100%;
 	aspect-ratio: 1/1;
-	background-image: url('../../../media/letterpress-light.svg'); /* Letterpress logo */
+	background-image: url('letterpress-black.svg'); /* Letterpress logo black for light theme */
 	background-size: contain;
 	background-position-x: center;
 	background-repeat: no-repeat;
@@ -63,17 +63,17 @@
 
 .void-void-icon,
 .monaco-workbench.vs-dark .part.editor > .content .editor-group-container .editor-group-watermark > .letterpress {
-	background-image: url('../../../media/letterpress-dark.svg'); /* Letterpress logo dark */
+	background-image: url('letterpress-white.svg'); /* Letterpress logo white for dark theme */
 }
 
 .void-void-icon,
 .monaco-workbench.hc-light .part.editor > .content .editor-group-container .editor-group-watermark > .letterpress {
-	background-image: url('../../../media/letterpress-hcLight.svg'); /* Letterpress logo high contrast light */
+	background-image: url('letterpress-black.svg'); /* Letterpress logo black for high contrast light */
 }
 
 .void-void-icon,
 .monaco-workbench.hc-black .part.editor > .content .editor-group-container .editor-group-watermark > .letterpress {
-	background-image: url('../../../media/letterpress-hcDark.svg'); /* Letterpress logo high contrast dark */
+	background-image: url('letterpress-white.svg'); /* Letterpress logo white for high contrast dark */
 }
 
 .monaco-workbench .part.editor > .content .editor-group-container > .editor-group-watermark > .shortcuts {

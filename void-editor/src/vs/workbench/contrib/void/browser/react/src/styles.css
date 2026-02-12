@@ -99,3 +99,13 @@
 .dropdown {
 	@apply bg-vscode-dropdown-bg text-vscode-dropdown-foreground border-vscode-dropdown-border focus:outline-vscode-focus-border;
 } */
+
+/* Shimmer animation for filename - gradient moves across text */
+@keyframes shimmer {
+	0% {
+		background-position: 200% 0;
+	}
+	100% {
+		background-position: -200% 0;
+	}
+}

@@ -1258,6 +1258,7 @@ export const VoidCustomDropdownBox = <T extends NonNullable<any>>({
 	getOptionDropdownName,
 	getOptionDropdownDetail,
 	getOptionDisplayName,
+	getOptionLogo,
 	getOptionsEqual,
 	className,
 	arrowTouchesText = true,
@@ -1271,6 +1272,7 @@ export const VoidCustomDropdownBox = <T extends NonNullable<any>>({
 	getOptionDropdownName: (option: T) => string;
 	getOptionDropdownDetail?: (option: T) => string;
 	getOptionDisplayName: (option: T) => string;
+	getOptionLogo?: (option: T) => React.ReactNode;
 	getOptionsEqual: (a: T, b: T) => boolean;
 	className?: string;
 	arrowTouchesText?: boolean;
@@ -1416,7 +1418,7 @@ export const VoidCustomDropdownBox = <T extends NonNullable<any>>({
 			{isOpen && (
 				<div
 					ref={refs.setFloating}
-					className="z-[100] bg-white border-black border-2 rounded-none shadow-2xl overflow-hidden"
+					className="z-[100] overflow-hidden"
 					style={{
 						position: strategy,
 						top: y ?? 0,
@@ -1426,7 +1428,11 @@ export const VoidCustomDropdownBox = <T extends NonNullable<any>>({
 							: Math.max(
 								(refs.reference.current instanceof HTMLElement ? refs.reference.current.offsetWidth : 0),
 								(measureRef.current instanceof HTMLElement ? measureRef.current.offsetWidth : 0)
-							))
+							)),
+						backgroundColor: '#FFFFFF',
+						border: '1px solid #D4D4D4',
+						borderRadius: '12px',
+						boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
 					}}
 					onWheel={(e) => e.stopPropagation()}
 				><div className='overflow-auto max-h-80 py-0.5'>
@@ -1435,35 +1441,43 @@ export const VoidCustomDropdownBox = <T extends NonNullable<any>>({
 							const thisOptionIsSelected = getOptionsEqual(option, selectedOption);
 							const optionName = getOptionDropdownName(option);
 							const optionDetail = getOptionDropdownDetail?.(option) || '';
+							const optionLogo = getOptionLogo?.(option);
 
 							return (
 								<div
 									key={optionName}
 									className={`flex items-center px-2 py-1.5 mx-0.5 cursor-pointer whitespace-nowrap text-sm
-									transition-all duration-150 rounded-md
-									${thisOptionIsSelected ? 'bg-[#000000] text-white shadow-sm' : 'hover:bg-[#F0F0F0] hover:text-[#000000]'}
+									transition-all duration-150
 								`}
+									style={{
+										backgroundColor: thisOptionIsSelected ? '#F0F0F0' : 'transparent',
+										color: '#000000',
+										borderRadius: '6px',
+										margin: '2px 4px',
+									}}
+									onMouseEnter={(e) => {
+										if (!thisOptionIsSelected) {
+											e.currentTarget.style.backgroundColor = '#F7F7F7';
+										}
+									}}
+									onMouseLeave={(e) => {
+										if (!thisOptionIsSelected) {
+											e.currentTarget.style.backgroundColor = 'transparent';
+										}
+									}}
 									onClick={() => {
 										onChangeOption(option);
 										setIsOpen(false);
 									}}
 								>
-									<div className="w-4 flex justify-center flex-shrink-0">
-										{thisOptionIsSelected && (
-											<svg className="size-3" viewBox="0 0 12 12" fill="none">
-												<path
-													d="M10 3L4.5 8.5L2 6"
-													stroke="currentColor"
-													strokeWidth="2"
-													strokeLinecap="round"
-													strokeLinejoin="round"
-												/>
-											</svg>
-										)}
-									</div>
+									{optionLogo && (
+										<div className="flex items-center justify-center mr-2 opacity-70">
+											{optionLogo}
+										</div>
+									)}
 									<span className="flex justify-between items-center w-full gap-x-2">
 										<span className="font-medium">{optionName}</span>
-										<span className={`text-xs ${thisOptionIsSelected ? 'opacity-80' : 'opacity-50'}`}>{optionDetail}</span>
+										<span className="text-xs opacity-50">{optionDetail}</span>
 									</span>
 								</div>
 							);

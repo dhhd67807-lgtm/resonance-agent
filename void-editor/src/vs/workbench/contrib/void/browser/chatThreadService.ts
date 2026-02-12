@@ -877,6 +877,14 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 				// llm res success
 				const { toolCall, info } = llmRes
 
+				console.log('[ChatThreadService] Adding committed message:', {
+					hasText: !!info.fullText,
+					textLength: info.fullText?.length || 0,
+					hasReasoning: !!info.fullReasoning,
+					reasoningLength: info.fullReasoning?.length || 0,
+					hasAnthropicReasoning: !!info.anthropicReasoning
+				})
+
 				this._addMessageToThread(threadId, { role: 'assistant', displayContent: info.fullText, reasoning: info.fullReasoning, anthropicReasoning: info.anthropicReasoning })
 
 				this._setStreamState(threadId, { isRunning: 'idle', interrupt: 'not_needed' }) // just decorative for clarity

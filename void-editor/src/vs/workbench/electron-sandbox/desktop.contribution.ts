@@ -193,7 +193,7 @@ import { registerWorkbenchContribution2, WorkbenchPhase } from '../common/contri
 			},
 			'window.zoomLevel': {
 				'type': 'number',
-				'default': -1,
+				'default': 0,
 				'minimum': MIN_ZOOM_LEVEL,
 				'maximum': MAX_ZOOM_LEVEL,
 				'markdownDescription': localize({ comment: ['{0} will be a setting name rendered as a link'], key: 'zoomLevel' }, "Adjust the default zoom level for all windows. Each increment above `0` (e.g. `1`) or below (e.g. `-1`) represents zooming `20%` larger or smaller. You can also enter decimals to adjust the zoom level with a finer granularity. See {0} for configuring if the 'Zoom In' and 'Zoom Out' commands apply the zoom level to all windows or only the active window.", '`#window.zoomPerWindow#`'),

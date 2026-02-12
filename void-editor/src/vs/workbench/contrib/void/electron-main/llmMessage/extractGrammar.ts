@@ -132,6 +132,16 @@ export const extractReasoningWrapper = (
 		newOnText({ ...params })
 
 		const { fullText, fullReasoning } = getOnFinalMessageParams()
+		
+		console.log('[extractReasoningWrapper] Final message:', {
+			originalFullText: params.fullText,
+			extractedFullText: fullText,
+			extractedFullReasoning: fullReasoning,
+			foundTag1,
+			foundTag2,
+			fullTextSoFarLength: fullTextSoFar.length
+		})
+		
 		onFinalMessage({ ...params, fullText, fullReasoning })
 	}
 
