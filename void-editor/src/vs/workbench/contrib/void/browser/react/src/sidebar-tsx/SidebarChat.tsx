@@ -888,7 +888,7 @@ const ToolHeaderWrapper = ({
 				background: '#FFFFFF',
 				border: '1px solid #E8E8E8',
 				borderRadius: children ? '8px 8px 0 0' : '8px',
-				boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+				boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.04)',
 			}}
 			onClick={() => {
 				if (onClick) { onClick(); }
@@ -896,12 +896,12 @@ const ToolHeaderWrapper = ({
 		>
 			{/* First line: Action and status (with short filename if applicable) */}
 			<div className="flex items-center gap-x-2 px-3 py-2">
-				{/* Title text - action only (e.g., "Reading", "Editing") with shimmer when running */}
+				{/* Title text - action only (e.g., "Reading", "Editing") with shimmer animation when running */}
 				{isRunning ? (
 					<motion.span 
 						className="flex-shrink-0 text-[12px] font-medium"
 						style={{
-							background: 'linear-gradient(110deg, #9CA3AF 0%, #1A1A1A 50%, #9CA3AF 100%)',
+							background: 'linear-gradient(110deg, rgba(156, 163, 175, 0.4) 0%, rgba(26, 26, 26, 0.6) 50%, rgba(156, 163, 175, 0.4) 100%)',
 							backgroundSize: '200% 100%',
 							WebkitBackgroundClip: 'text',
 							WebkitTextFillColor: 'transparent',
@@ -921,6 +921,35 @@ const ToolHeaderWrapper = ({
 					>
 						{title}
 					</motion.span>
+				) : isError ? (
+					<motion.span 
+						className="flex-shrink-0 text-[12px] font-medium relative"
+						style={{
+							color: '#1A1A1A',
+							fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+							letterSpacing: '-0.01em',
+							fontWeight: 500,
+						}}
+					>
+						{title}
+						<motion.div
+							style={{
+								position: 'absolute',
+								top: '50%',
+								left: 0,
+								right: 0,
+								height: '1px',
+								background: '#EF4444',
+								transformOrigin: 'left',
+							}}
+							initial={{ scaleX: 0 }}
+							animate={{ scaleX: 1 }}
+							transition={{
+								duration: 0.3,
+								ease: 'easeOut',
+							}}
+						/>
+					</motion.span>
 				) : (
 					<span 
 						className="flex-shrink-0 text-[12px] font-medium"
@@ -936,7 +965,7 @@ const ToolHeaderWrapper = ({
 				)}
 
 				{/* Filename with icon on same line */}
-				{isShortFilename && (
+				{isShortFilename && typeof desc1 === 'string' && (
 					<span 
 						className={`inline-flex items-center gap-x-1 text-[11px] font-normal ${desc1OnClick ? 'cursor-pointer hover:opacity-70' : ''}`}
 						style={{
@@ -996,7 +1025,7 @@ const ToolHeaderWrapper = ({
 					<StatusIcon />
 
 					{desc2 && <span 
-						className="text-xs opacity-50 hover:opacity-80 transition-opacity cursor-pointer" 
+						className="text-xs opacity-50 hover:opacity-80 transition-opacity cursor-pointer truncate max-w-[200px]" 
 						style={{ color: '#9CA3AF' }}
 						onClick={desc2OnClick}
 					>
@@ -1043,58 +1072,57 @@ const EditTool = ({ toolMessage, threadId, messageIdx, content }: Parameters<Res
 	let linesAdded: number | undefined;
 	let linesDeleted: number | undefined;
 	
-	if (content && (toolMessage.type === 'success' || toolMessage.type === 'rejected' || toolMessage.type === 'running_now')) {
-		// Get original file content
-		const { model } = voidModelService.getModel(params.uri);
-		if (model) {
-			const originalContent = model.getValue();
-			const originalLines = originalContent.split('\n');
+	// Only calculate for completed edits (success or rejected), not while running
+	if (content && (toolMessage.type === 'success' || toolMessage.type === 'rejected')) {
+		if (toolMessage.name === 'edit_file') {
+			// For edit_file, content contains ORIGINAL/UPDATED blocks
+			// Parse the blocks to count changes
+			const blocks = content.split('<<<<<<< ORIGINAL');
+			let totalAdded = 0;
+			let totalDeleted = 0;
 			
-			if (toolMessage.name === 'rewrite_file') {
-				// For rewrite, the content is the new file content
-				const newLines = content.split('\n');
-				const diff = newLines.length - originalLines.length;
+			for (const block of blocks) {
+				if (!block.trim()) continue;
 				
-				// Only show the net change
+				const parts = block.split('=======');
+				if (parts.length === 2) {
+					const originalPart = parts[0].trim();
+					const updatedPart = parts[1].split('>>>>>>> UPDATED')[0].trim();
+					
+					const originalLines = originalPart ? originalPart.split('\n').length : 0;
+					const updatedLines = updatedPart ? updatedPart.split('\n').length : 0;
+					
+					const blockDiff = updatedLines - originalLines;
+					if (blockDiff > 0) {
+						totalAdded += blockDiff;
+					} else if (blockDiff < 0) {
+						totalDeleted += Math.abs(blockDiff);
+					}
+				}
+			}
+			
+			// Only show if there are actual changes
+			if (totalAdded > 0) {
+				linesAdded = totalAdded;
+			}
+			if (totalDeleted > 0) {
+				linesDeleted = totalDeleted;
+			}
+		} else if (toolMessage.name === 'rewrite_file') {
+			// For rewrite, compare new content with original file
+			const { model } = voidModelService.getModel(params.uri);
+			if (model) {
+				const originalContent = model.getValue();
+				const originalLines = originalContent.split('\n').length;
+				const newLines = content.split('\n').length;
+				
+				const diff = newLines - originalLines;
+				
+				// Show net change
 				if (diff > 0) {
 					linesAdded = diff;
 				} else if (diff < 0) {
 					linesDeleted = Math.abs(diff);
-				}
-				// If diff === 0, don't show any badges
-			} else if (toolMessage.name === 'edit_file') {
-				// For edit_file, content contains search/replace blocks
-				// Parse the blocks to estimate changes
-				const blocks = content.split('<<<<<<< SEARCH');
-				let totalAdded = 0;
-				let totalDeleted = 0;
-				
-				for (const block of blocks) {
-					if (!block.trim()) continue;
-					
-					const parts = block.split('=======');
-					if (parts.length === 2) {
-						const searchPart = parts[0].trim();
-						const replacePart = parts[1].split('>>>>>>> REPLACE')[0].trim();
-						
-						const searchLines = searchPart.split('\n').length;
-						const replaceLines = replacePart.split('\n').length;
-						
-						const blockDiff = replaceLines - searchLines;
-						if (blockDiff > 0) {
-							totalAdded += blockDiff;
-						} else if (blockDiff < 0) {
-							totalDeleted += Math.abs(blockDiff);
-						}
-					}
-				}
-				
-				// Only show if there are actual changes
-				if (totalAdded > 0) {
-					linesAdded = totalAdded;
-				}
-				if (totalDeleted > 0) {
-					linesDeleted = totalDeleted;
 				}
 			}
 		}
@@ -1117,17 +1145,16 @@ const EditTool = ({ toolMessage, threadId, messageIdx, content }: Parameters<Res
 	const editToolType = toolMessage.name === 'edit_file' ? 'diff' : 'rewrite'
 	const isRunning = toolMessage.type === 'running_now' || toolMessage.type === 'tool_request'
 	
-	// Open file in center editor when editing starts
+	// Open file in center editor when editing starts or when complete
 	useEffect(() => {
-		if (isRunning && params.uri) {
+		if (params.uri) {
 			commandService.executeCommand('vscode.open', params.uri);
 		}
-	}, [isRunning, params.uri, commandService]);
+	}, [params.uri, commandService]);
 	
 	if (isRunning) {
 		componentParams.isRunning = true
 		// Don't show code preview in chat - it's being edited live in the center editor
-		// JumpToFileButton removed in favor of FileLinkText
 	}
 	else if (toolMessage.type === 'success' || toolMessage.type === 'rejected' || toolMessage.type === 'tool_error') {
 		// add apply box
@@ -1484,7 +1511,7 @@ prose-table:text-[13px]
 	</div>
 }
 
-const ProseWrapper = ({ children }: { children: React.ReactNode }) => {
+const ProseWrapper = ({ children, isStreaming }: { children: React.ReactNode, isStreaming?: boolean }) => {
 	return <div className='
 text-void-fg-2
 prose
@@ -1561,7 +1588,7 @@ const AssistantMessageComponent = ({ chatMessage, isCheckpointGhost, isCommitted
 		{/* assistant message */}
 		{chatMessage.displayContent &&
 			<div className={`${isCheckpointGhost ? 'opacity-50' : ''}`}>
-				<ProseWrapper>
+				<ProseWrapper isStreaming={!isCommitted}>
 					<ChatMarkdownRender
 						string={chatMessage.displayContent || ''}
 						chatMessageLocation={chatMessageLocation}
@@ -1714,7 +1741,7 @@ const getFilenameBadgeColor = (toolName: BuiltinToolName): string => {
 	return '#FFFFFF';
 }
 
-const getTitle = (toolMessage: Pick<ChatMessage & { role: 'tool' }, 'name' | 'type' | 'mcpServerName'>): React.ReactNode => {
+const getTitle = (toolMessage: Pick<ChatMessage & { role: 'tool' }, 'name' | 'type' | 'mcpServerName' | 'params'>): React.ReactNode => {
 	const t = toolMessage
 
 	// non-built-in title
@@ -1952,7 +1979,7 @@ export const ToolChildrenWrapper = ({ children, className }: { children: React.R
 				backgroundColor: '#FFFFFF',
 				border: '1px solid #E8E8E8',
 				borderTop: 'none',
-				boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+				boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.04)',
 			}}
 		>
 			{children}
@@ -1967,6 +1994,7 @@ export const CodeChildren = ({ children, className }: { children: React.ReactNod
 			color: '#1A1A1A',
 			lineHeight: '1.6',
 			fontFamily: '"SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
+			boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.04)',
 		}}
 	>
 		<div className='!select-text cursor-auto'>
@@ -2002,6 +2030,7 @@ const EditToolChildren = ({ uri, code, type }: { uri: URI | undefined, code: str
 		style={{
 			backgroundColor: '#FAFAFA',
 			color: '#1A1A1A',
+			boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.04)',
 		}}
 	>
 		<SmallProseWrapper>
@@ -2021,6 +2050,7 @@ const LintErrorChildren = ({ lintErrors }: { lintErrors: LintErrorItem[] }) => {
 			border: '1px solid #E8E8E8',
 			borderTop: 'none',
 			borderLeft: '2px solid #F87171',
+			boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.04)',
 		}}
 	>
 		{lintErrors.map((error, i) => (
@@ -2040,6 +2070,7 @@ const BottomChildren = ({ children, title }: { children: React.ReactNode, title:
 				style={{ 
 					background: '#F0F0F0',
 					border: '1px solid #E8E8E8',
+					boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.04)',
 				}}
 				onMouseEnter={(e) => e.currentTarget.style.background = '#E8E8E8'}
 				onMouseLeave={(e) => e.currentTarget.style.background = '#F0F0F0'}
@@ -2065,6 +2096,7 @@ const BottomChildren = ({ children, title }: { children: React.ReactNode, title:
 						color: '#991B1B',
 						border: '1px solid #E8E8E8',
 						borderLeft: '2px solid #F87171',
+						boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.04)',
 					}}
 				>
 					{children}
@@ -2132,48 +2164,39 @@ const CommandTool = ({ toolMessage, type, threadId }: { threadId: string } & ({
 	const icon = null
 	const streamState = useChatThreadsStreamState(threadId)
 
-	const divRef = useRef<HTMLDivElement | null>(null)
-
 	const isRejected = toolMessage.type === 'rejected'
 	const { rawParams, params } = toolMessage
 	const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, }
 
 
+	// Focus terminal when command starts running
 	const effect = async () => {
 		if (streamState?.isRunning !== 'tool') return
-		if (type !== 'run_command' || toolMessage.type !== 'running_now') return;
+		if (toolMessage.type !== 'running_now') return;
 
 		// wait for the interruptor so we know it's running
-
 		await streamState?.interrupt
-		const container = divRef.current;
-		if (!container) return;
 
-		const terminal = terminalToolsService.getTemporaryTerminal(toolMessage.params.terminalId);
+		let terminal;
+		if (type === 'run_command') {
+			terminal = terminalToolsService.getTemporaryTerminal(toolMessage.params.terminalId);
+		} else {
+			terminal = terminalToolsService.getPersistentTerminal(toolMessage.params.persistentTerminalId);
+		}
+		
 		if (!terminal) return;
 
+		// Show terminal in the original terminal panel
 		try {
-			terminal.attachToElement(container);
-			terminal.setVisible(true)
+			commandService.executeCommand('workbench.action.terminal.focus');
+			terminal.setVisible(true);
 		} catch {
 		}
-
-		// Listen for size changes of the container and keep the terminal layout in sync.
-		const resizeObserver = new ResizeObserver((entries) => {
-			const height = entries[0].borderBoxSize[0].blockSize;
-			const width = entries[0].borderBoxSize[0].inlineSize;
-			if (typeof terminal.layout === 'function') {
-				terminal.layout({ width, height });
-			}
-		});
-
-		resizeObserver.observe(container);
-		return () => { terminal.detachFromElement(); resizeObserver?.disconnect(); }
 	}
 
 	useEffect(() => {
 		effect()
-	}, [terminalToolsService, toolMessage, toolMessage.type, type]);
+	}, [terminalToolsService, toolMessage, toolMessage.type, type, streamState]);
 
 	if (toolMessage.type === 'success') {
 		const { result } = toolMessage
@@ -2186,50 +2209,55 @@ const CommandTool = ({ toolMessage, type, threadId }: { threadId: string } & ({
 			componentParams.info = persistentTerminalNameOfId(toolMessage.params.persistentTerminalId)
 		}
 
-		// Filter out info messages about terminal execution
-		const infoMessages = [
-			'Running in background terminal',
-			'Terminal command is running',
-			'given outputs are the results'
-		];
-		const hasInfoMessage = infoMessages.some(info => msg.includes(info));
-
-		// Only show output if there is actual content and it's not just an info message
-		if (msg.trim() && !hasInfoMessage) {
-			// Detect language from command for better syntax highlighting
-			const command = toolMessage.params.command.toLowerCase();
-			let language = 'plaintext';
-			
-			if (command.includes('python') || command.endsWith('.py')) {
-				language = 'python';
-			} else if (command.includes('node') || command.includes('npm') || command.endsWith('.js') || command.endsWith('.ts')) {
-				language = 'javascript';
-			} else if (command.includes('ruby') || command.endsWith('.rb')) {
-				language = 'ruby';
-			} else if (command.includes('java') || command.endsWith('.java')) {
-				language = 'java';
-			} else if (command.includes('go run') || command.endsWith('.go')) {
-				language = 'go';
-			} else if (command.includes('cargo') || command.endsWith('.rs')) {
-				language = 'rust';
-			}
-
-			// Show full command + output with clean design
-			const fullOutput = `$ ${toolMessage.params.command}\n\n${msg.trim()}`;
-			
-			componentParams.children = <ToolChildrenWrapper>
-				<CodeChildren>
-					<BlockCode initValue={fullOutput} language={language} noBg={true} />
-				</CodeChildren>
-			</ToolChildrenWrapper>
+		// Show command that was run
+		const command = toolMessage.params.command;
+		
+		// Detect language from command for better syntax highlighting
+		let language = 'shell';
+		
+		if (command.includes('python') || command.endsWith('.py')) {
+			language = 'python';
+		} else if (command.includes('node') || command.includes('npm') || command.endsWith('.js') || command.endsWith('.ts')) {
+			language = 'javascript';
+		} else if (command.includes('ruby') || command.endsWith('.rb')) {
+			language = 'ruby';
+		} else if (command.includes('java') || command.endsWith('.java')) {
+			language = 'java';
+		} else if (command.includes('go run') || command.endsWith('.go')) {
+			language = 'go';
+		} else if (command.includes('cargo') || command.endsWith('.rs')) {
+			language = 'rust';
 		}
+
+		// Show command with $ prefix
+		componentParams.children = <ToolChildrenWrapper>
+			<CodeChildren>
+				<BlockCode initValue={`$ ${command}`} language={language} noBg={true} />
+			</CodeChildren>
+		</ToolChildrenWrapper>
+		
+		// Don't show status messages - they're redundant
 	}
 	else if (toolMessage.type === 'tool_error') {
 		const { result } = toolMessage
 		
+		// Hide terminal-related errors (they're internal issues)
+		const terminalErrors = [
+			'Terminal creation failed',
+			'Persistent terminal',
+			'does not exist',
+			'Please create it first using open_persistent_terminal'
+		];
+		const isTerminalError = terminalErrors.some(err => result.includes(err));
+		
+		if (isTerminalError) {
+			// Don't show terminal errors - they're confusing to users
+			return null;
+		}
+		
 		// Show the command that was run
 		const command = toolMessage.params.command;
-		let language = 'plaintext';
+		let language = 'shell';
 		
 		if (command.toLowerCase().includes('python') || command.toLowerCase().endsWith('.py')) {
 			language = 'python';
@@ -2261,18 +2289,29 @@ const CommandTool = ({ toolMessage, type, threadId }: { threadId: string } & ({
 	}
 	else if (toolMessage.type === 'running_now') {
 		componentParams.isRunning = true
-		// Show a placeholder while command is running
+		// Show command being run
+		const command = toolMessage.params.command;
+		let language = 'shell';
+		
+		if (command.includes('python') || command.endsWith('.py')) {
+			language = 'python';
+		} else if (command.includes('node') || command.includes('npm') || command.endsWith('.js') || command.endsWith('.ts')) {
+			language = 'javascript';
+		}
+		
 		componentParams.children = <ToolChildrenWrapper>
 			<CodeChildren>
-				<div className="text-[#6B6B6B] italic">Running command...</div>
+				<BlockCode initValue={`$ ${command}`} language={language} noBg={true} />
 			</CodeChildren>
 		</ToolChildrenWrapper>
+		
+		// Don't show status message - the shimmer animation is enough
 	}
 	else if (toolMessage.type === 'rejected' || toolMessage.type === 'tool_request') {
 	}
 
 	return <>
-		<ToolHeaderWrapper {...componentParams} isOpen={type === 'run_command' && toolMessage.type === 'running_now' ? true : undefined} />
+		<ToolHeaderWrapper {...componentParams} />
 	</>
 }
 
@@ -2342,12 +2381,12 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: Res
 			const icon = null
 
 			if (toolMessage.type === 'tool_request') return null // do not show past requests
-			if (toolMessage.type === 'running_now') return null // do not show running
 
 			const isError = false
 			const isRejected = toolMessage.type === 'rejected'
+			const isRunning = toolMessage.type === 'running_now'
 			const { rawParams, params } = toolMessage
-			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, }
+			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, isRunning, }
 
 			let range: [number, number] | undefined = undefined
 			if (toolMessage.params.startLine !== null || toolMessage.params.endLine !== null) {
@@ -2389,12 +2428,12 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: Res
 			const icon = null
 
 			if (toolMessage.type === 'tool_request') return null // do not show past requests
-			if (toolMessage.type === 'running_now') return null // do not show running
 
 			const isError = false
 			const isRejected = toolMessage.type === 'rejected'
+			const isRunning = toolMessage.type === 'running_now'
 			const { rawParams, params } = toolMessage
-			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, }
+			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, isRunning, }
 
 			if (params.uri) {
 				const rel = getRelative(params.uri, accessor)
@@ -2437,12 +2476,12 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: Res
 			const icon = null
 
 			if (toolMessage.type === 'tool_request') return null // do not show past requests
-			if (toolMessage.type === 'running_now') return null // do not show running
 
 			const isError = false
 			const isRejected = toolMessage.type === 'rejected'
+			const isRunning = toolMessage.type === 'running_now'
 			const { rawParams, params } = toolMessage
-			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, }
+			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, isRunning, }
 
 			if (params.uri) {
 				const rel = getRelative(params.uri, accessor)
@@ -2487,15 +2526,15 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: Res
 			const commandService = accessor.get('ICommandService')
 			const isError = false
 			const isRejected = toolMessage.type === 'rejected'
+			const isRunning = toolMessage.type === 'running_now'
 			const title = getTitle(toolMessage)
 			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor)
 			const icon = null
 
 			if (toolMessage.type === 'tool_request') return null // do not show past requests
-			if (toolMessage.type === 'running_now') return null // do not show running
 
 			const { rawParams, params } = toolMessage
-			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, }
+			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, isRunning, }
 
 			if (params.includePattern) {
 				componentParams.info = `Only search in ${params.includePattern}`
@@ -2536,15 +2575,15 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: Res
 			const commandService = accessor.get('ICommandService')
 			const isError = false
 			const isRejected = toolMessage.type === 'rejected'
+			const isRunning = toolMessage.type === 'running_now'
 			const title = getTitle(toolMessage)
 			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor)
 			const icon = null
 
 			if (toolMessage.type === 'tool_request') return null // do not show past requests
-			if (toolMessage.type === 'running_now') return null // do not show running
 
 			const { rawParams, params } = toolMessage
-			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, }
+			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, isRunning, }
 
 			if (params.searchInFolder || params.isRegex) {
 				let info: string[] = []
@@ -2592,14 +2631,14 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: Res
 			const title = getTitle(toolMessage);
 			const isError = false
 			const isRejected = toolMessage.type === 'rejected'
+			const isRunning = toolMessage.type === 'running_now'
 			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor);
 			const icon = null;
 
 			if (toolMessage.type === 'tool_request') return null // do not show past requests
-			if (toolMessage.type === 'running_now') return null // do not show running
 
 			const { rawParams, params } = toolMessage;
-			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected };
+			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, isRunning };
 
 			const infoarr: string[] = []
 			const uriStr = getRelative(params.uri, accessor)
@@ -2644,12 +2683,12 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: Res
 			const icon = null
 
 			if (toolMessage.type === 'tool_request') return null // do not show past requests
-			if (toolMessage.type === 'running_now') return null // do not show running
 
 			const isError = false
 			const isRejected = toolMessage.type === 'rejected'
+			const isRunning = toolMessage.type === 'running_now'
 			const { rawParams, params } = toolMessage
-			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, }
+			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, isRunning, }
 
 			componentParams.info = getRelative(uri, accessor) // full path
 
@@ -2684,13 +2723,14 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: Res
 			const commandService = accessor.get('ICommandService')
 			const isError = false
 			const isRejected = toolMessage.type === 'rejected'
+			const isRunning = toolMessage.type === 'running_now'
 			const title = getTitle(toolMessage)
 			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor)
 			const icon = null
 
 
 			const { rawParams, params } = toolMessage
-			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, }
+			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, isRunning, }
 
 			componentParams.info = getRelative(params.uri, accessor) // full path
 
@@ -2727,12 +2767,13 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: Res
 			const isFolder = toolMessage.params?.isFolder ?? false
 			const isError = false
 			const isRejected = toolMessage.type === 'rejected'
+			const isRunning = toolMessage.type === 'running_now'
 			const title = getTitle(toolMessage)
 			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor)
 			const icon = null
 
 			const { rawParams, params } = toolMessage
-			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, }
+			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, isRunning, }
 
 			componentParams.info = getRelative(params.uri, accessor) // full path
 
@@ -2798,12 +2839,12 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: Res
 			const icon = null
 
 			if (toolMessage.type === 'tool_request') return null // do not show past requests
-			if (toolMessage.type === 'running_now') return null // do not show running
 
 			const isError = false
 			const isRejected = toolMessage.type === 'rejected'
+			const isRunning = toolMessage.type === 'running_now'
 			const { rawParams, params } = toolMessage
-			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, }
+			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, isRunning, }
 
 			const relativePath = params.cwd ? getRelative(URI.file(params.cwd), accessor) : ''
 			componentParams.info = relativePath ? `Running in ${relativePath}` : undefined
@@ -2837,12 +2878,12 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: Res
 			const icon = null
 
 			if (toolMessage.type === 'tool_request') return null // do not show past requests
-			if (toolMessage.type === 'running_now') return null // do not show running
 
 			const isError = false
 			const isRejected = toolMessage.type === 'rejected'
+			const isRunning = toolMessage.type === 'running_now'
 			const { rawParams, params } = toolMessage
-			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, }
+			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, isRunning, }
 
 			if (toolMessage.type === 'success') {
 				const { persistentTerminalId } = params
@@ -3049,7 +3090,7 @@ const CommandBarInChat = () => {
 
 	const threadStatus = (
 		chatThreadsStreamState?.isRunning === 'awaiting_user' ? { title: 'Needs Approval', color: 'yellow', } as const
-			: chatThreadsStreamState?.isRunning ? { title: 'Running', color: 'orange', } as const
+			: chatThreadsStreamState?.isRunning ? { title: 'Running', color: 'green', } as const
 				: { title: 'Done', color: 'dark', } as const
 	)
 
@@ -3129,7 +3170,7 @@ const CommandBarInChat = () => {
 
 			const fileStatus = (isFinishedMakingFileChanges
 				? { title: 'Done', color: 'dark', } as const
-				: { title: 'Running', color: 'orange', } as const
+				: { title: 'Running', color: 'green', } as const
 			)
 
 			const fileNameHTML = <div
@@ -3279,12 +3320,12 @@ const EditToolSoFar = ({ toolCallSoFar, }: { toolCallSoFar: RawToolCallObj }) =>
 
 	const desc1OnClick = () => { uri && voidOpenFileFn(uri, accessor) }
 
-	// Open file in center editor when streaming starts
+	// Open file in center editor when uri is available
 	useEffect(() => {
-		if (uri && uriDone) {
+		if (uri) {
 			commandService.executeCommand('vscode.open', uri);
 		}
-	}, [uri, uriDone, commandService]);
+	}, [uri, commandService]);
 
 	// Don't show code preview in chat - it's being edited live in the center editor
 	return <ToolHeaderWrapper
@@ -3587,9 +3628,9 @@ export const SidebarChat = () => {
 				viewBox="0 0 1408 1408"
 				style={{ opacity: 0.6 }}
 			>
-				<path fill="#FFFFFF" fillOpacity="1" d="M669.713 562.531C690.313 563.21 712.512 562.869 733.273 563.013C733.148 581.866 732.485 725.697 734.298 730.454C735.272 733.008 737.971 734.757 740.339 735.811C745.743 732.47 771.967 705.163 778.141 699.007L861.791 615.945C868.186 621.903 902.959 655.188 905.527 660.525C901.421 668.365 876.356 691.741 869.275 698.793L817.557 750.376L785.027 782.599C779.835 787.702 770.091 797.873 764.289 801.348C756.699 802.469 748.001 792.722 741.426 788.906C737.615 786.693 735.304 785.547 731.23 783.686C708.981 774.559 682.192 776.562 661.604 789.203C657.314 791.585 645.462 802.018 640.951 801.377C634.658 800.482 616.454 780.489 612.251 776.294L574.316 738.496L529.499 693.618C522.815 686.926 503.428 669.593 499.378 660.092C498.925 659.03 502.072 654.95 503.025 653.908C508.566 647.849 514.875 642.21 520.683 636.366C527.109 630.175 534.303 621.923 541.062 616.5C546.136 619.978 559.415 633.736 564.617 638.906L625.312 699.589C630.639 704.943 659.733 735.641 664.755 735.742C667.3 734.126 667.635 733.444 669.563 731.019L669.713 562.531Z"/>
-				<path fill="#FFFFFF" fillOpacity="1" d="M463.306 779.695C475.053 778.931 492.474 779.584 504.703 779.587C514.186 779.589 556.867 778.173 562.771 782.733C577.895 794.411 594.056 812.714 608.053 826.34C613.516 831.658 613.064 837.954 607.206 842.661C597.395 845.171 547.257 843.654 534.474 843.661L490.519 843.666C483.204 843.664 466.826 844.64 461.164 841.87C457.938 840.291 459.217 816.762 459.227 812.938C459.251 803.726 458.228 793.895 459.396 784.731C459.762 781.863 461.123 781.15 463.306 779.695Z"/>
-				<path fill="#FFFFFF" fillOpacity="1" d="M850.53 780.372C879.707 778.735 911.82 780.967 941.204 780.393C943.235 780.353 945.112 782.418 946.158 783.954C947.139 790.441 947.015 835.569 945.071 840.815C942.143 843.673 937.745 844.011 933.825 844.001C920.328 843.967 906.795 843.848 893.3 843.754L831.053 843.724C823.251 843.728 808.656 844.949 801.641 843.09C799.45 842.509 797.116 840.16 796.09 838.176C794.996 836.059 795.116 833.72 795.949 831.536C798.329 825.297 833.463 791.996 840.814 786.121C843.901 783.653 846.865 781.886 850.53 780.372Z"/>
+				<path fill="#000000" fillOpacity="1" d="M669.713 562.531C690.313 563.21 712.512 562.869 733.273 563.013C733.148 581.866 732.485 725.697 734.298 730.454C735.272 733.008 737.971 734.757 740.339 735.811C745.743 732.47 771.967 705.163 778.141 699.007L861.791 615.945C868.186 621.903 902.959 655.188 905.527 660.525C901.421 668.365 876.356 691.741 869.275 698.793L817.557 750.376L785.027 782.599C779.835 787.702 770.091 797.873 764.289 801.348C756.699 802.469 748.001 792.722 741.426 788.906C737.615 786.693 735.304 785.547 731.23 783.686C708.981 774.559 682.192 776.562 661.604 789.203C657.314 791.585 645.462 802.018 640.951 801.377C634.658 800.482 616.454 780.489 612.251 776.294L574.316 738.496L529.499 693.618C522.815 686.926 503.428 669.593 499.378 660.092C498.925 659.03 502.072 654.95 503.025 653.908C508.566 647.849 514.875 642.21 520.683 636.366C527.109 630.175 534.303 621.923 541.062 616.5C546.136 619.978 559.415 633.736 564.617 638.906L625.312 699.589C630.639 704.943 659.733 735.641 664.755 735.742C667.3 734.126 667.635 733.444 669.563 731.019L669.713 562.531Z"/>
+				<path fill="#000000" fillOpacity="1" d="M463.306 779.695C475.053 778.931 492.474 779.584 504.703 779.587C514.186 779.589 556.867 778.173 562.771 782.733C577.895 794.411 594.056 812.714 608.053 826.34C613.516 831.658 613.064 837.954 607.206 842.661C597.395 845.171 547.257 843.654 534.474 843.661L490.519 843.666C483.204 843.664 466.826 844.64 461.164 841.87C457.938 840.291 459.217 816.762 459.227 812.938C459.251 803.726 458.228 793.895 459.396 784.731C459.762 781.863 461.123 781.15 463.306 779.695Z"/>
+				<path fill="#000000" fillOpacity="1" d="M850.53 780.372C879.707 778.735 911.82 780.967 941.204 780.393C943.235 780.353 945.112 782.418 946.158 783.954C947.139 790.441 947.015 835.569 945.071 840.815C942.143 843.673 937.745 844.011 933.825 844.001C920.328 843.967 906.795 843.848 893.3 843.754L831.053 843.724C823.251 843.728 808.656 844.949 801.641 843.09C799.45 842.509 797.116 840.16 796.09 838.176C794.996 836.059 795.116 833.72 795.949 831.536C798.329 825.297 833.463 791.996 840.814 786.121C843.901 783.653 846.865 781.886 850.53 780.372Z"/>
 			</svg>
 		</div>
 		

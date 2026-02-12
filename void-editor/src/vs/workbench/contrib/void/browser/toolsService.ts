@@ -1,6 +1,7 @@
 import { CancellationToken } from '../../../../base/common/cancellation.js'
 import { URI } from '../../../../base/common/uri.js'
 import { IFileService } from '../../../../platform/files/common/files.js'
+import { VSBuffer } from '../../../../base/common/buffer.js'
 import { registerSingleton, InstantiationType } from '../../../../platform/instantiation/common/extensions.js'
 import { createDecorator, IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js'
 import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js'
@@ -43,6 +44,16 @@ const validateStr = (argName: string, value: unknown) => {
 const validateURI = (uriStr: unknown) => {
 	if (uriStr === null) throw new Error(`Invalid LLM output: uri was null.`)
 	if (typeof uriStr !== 'string') throw new Error(`Invalid LLM output format: Provided uri must be a string, but it's a(n) ${typeof uriStr}. Full value: ${JSON.stringify(uriStr)}.`)
+	
+	// Check if the URI is suspiciously long (likely contains parameter content)
+	if (uriStr.length > 500) {
+		throw new Error(`Invalid LLM output: The URI is too long (${uriStr.length} characters). It appears the tool parameters were incorrectly formatted. The URI should only contain the file path, not the edit content.`);
+	}
+	
+	// Check if URI contains parameter markers (common mistake)
+	if (uriStr.includes('<parameter') || uriStr.includes('<<<<<<< ORIGINAL') || uriStr.includes('>>>>>>> UPDATED')) {
+		throw new Error(`Invalid LLM output: The URI contains edit content markers. The 'uri' and 'search_replace_blocks' must be separate parameters. Please provide only the file path in the 'uri' parameter.`);
+	}
 
 	// Check if it's already a full URI with scheme (e.g., vscode-remote://, file://, etc.)
 	// Look for :// pattern which indicates a scheme is present
@@ -261,7 +272,13 @@ export class ToolsService implements IToolsService {
 			edit_file: (params: RawToolParamsObj) => {
 				const { uri: uriStr, search_replace_blocks: searchReplaceBlocksUnknown } = params
 				const uri = validateURI(uriStr)
-				const searchReplaceBlocks = validateStr('searchReplaceBlocks', searchReplaceBlocksUnknown)
+				
+				// Better error message if search_replace_blocks is missing
+				if (searchReplaceBlocksUnknown === undefined || searchReplaceBlocksUnknown === null) {
+					throw new Error(`The 'search_replace_blocks' parameter is required but was not provided. Please provide the ORIGINAL/UPDATED blocks to edit the file.`);
+				}
+				
+				const searchReplaceBlocks = validateStr('search_replace_blocks', searchReplaceBlocksUnknown)
 				return { uri, searchReplaceBlocks }
 			},
 
@@ -413,10 +430,26 @@ export class ToolsService implements IToolsService {
 			},
 
 			rewrite_file: async ({ uri, newContent }) => {
-				// Open file in editor immediately when editing starts
-				await this.commandService.executeCommand('vscode.open', uri);
+				// Ensure file exists first (create if it doesn't)
+				try {
+					await fileService.stat(uri);
+				} catch (error) {
+					// File doesn't exist, create it
+					await fileService.createFile(uri, VSBuffer.fromString(''));
+				}
 				
+				// Wait for file system to settle
+				await timeout(200);
+				
+				// Initialize the model
 				await voidModelService.initializeModel(uri)
+				
+				// Verify the model exists before proceeding
+				const { model } = voidModelService.getModel(uri);
+				if (!model) {
+					throw new Error(`File does not exist or could not be loaded: ${uri.fsPath}`);
+				}
+				
 				if (this.commandBarService.getStreamState(uri) === 'streaming') {
 					throw new Error(`Another LLM is currently making changes to this file. Please stop streaming for now and ask the user to resume later.`)
 				}
@@ -424,6 +457,10 @@ export class ToolsService implements IToolsService {
 				
 				// Use instant apply - more reliable than streaming for complete content
 				editCodeService.instantlyRewriteFile({ uri, newContent })
+				
+				// Open file in editor after content is written
+				await timeout(100);
+				await this.commandService.executeCommand('vscode.open', uri);
 				
 				// at end, get lint errors
 				const lintErrorsPromise = Promise.resolve().then(async () => {
@@ -438,7 +475,17 @@ export class ToolsService implements IToolsService {
 				// Open file in editor immediately when editing starts
 				await this.commandService.executeCommand('vscode.open', uri);
 				
+				// Wait a bit for the file to be opened and loaded
+				await timeout(100);
+				
 				await voidModelService.initializeModel(uri)
+				
+				// Verify the model exists before proceeding
+				const { model } = voidModelService.getModel(uri);
+				if (!model) {
+					throw new Error(`File does not exist or could not be loaded: ${uri.fsPath}`);
+				}
+				
 				if (this.commandBarService.getStreamState(uri) === 'streaming') {
 					throw new Error(`Another LLM is currently making changes to this file. Please stop streaming for now and ask the user to resume later.`)
 				}

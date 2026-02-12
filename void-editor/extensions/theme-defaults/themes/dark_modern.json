@@ -1,6 +1,7 @@
 {
 	"$schema": "vscode://schemas/color-theme",
-	"name": "Default Dark Modern",
+	"name": "Resonance Light",
+	"type": "light",
 	"include": "./dark_plus.json",
 	"colors": {
 		"activityBar.activeBorder": "#D4D4D4",

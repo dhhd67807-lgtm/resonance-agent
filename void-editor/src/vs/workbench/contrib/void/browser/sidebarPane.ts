@@ -12,9 +12,8 @@ import {
 
 import * as nls from '../../../../nls.js';
 
-// import { Codicon } from '../../../../base/common/codicons.js';
-// import { localize } from '../../../../nls.js';
-// import { registerIcon } from '../../../../platform/theme/common/iconRegistry.js';
+import { Codicon } from '../../../../base/common/codicons.js';
+import { registerIcon } from '../../../../platform/theme/common/iconRegistry.js';
 import { ViewPaneContainer } from '../../../browser/parts/views/viewPaneContainer.js';
 
 import { SyncDescriptor } from '../../../../platform/instantiation/common/descriptors.js';
@@ -28,7 +27,6 @@ import { IInstantiationService } from '../../../../platform/instantiation/common
 // import { IDisposable } from '../../../../base/common/lifecycle.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { IThemeService } from '../../../../platform/theme/common/themeService.js';
-import { FileAccess } from '../../../../base/common/network.js';
 import { IContextMenuService } from '../../../../platform/contextview/browser/contextView.js';
 import { IKeybindingService } from '../../../../platform/keybinding/common/keybinding.js';
 import { IOpenerService } from '../../../../platform/opener/common/opener.js';
@@ -97,8 +95,8 @@ class SidebarViewPane extends ViewPane {
 
 // ---------- Register viewpane inside the void container ----------
 
-// const voidThemeIcon = Codicon.symbolObject;
-// const voidViewIcon = registerIcon('void-view-icon', voidThemeIcon, localize('voidViewIcon', 'View icon of the Void chat view.'));
+// Register custom icon for Resonance
+const resonanceViewIcon = registerIcon('resonance-view-icon', Codicon.commentDiscussion, nls.localize('resonanceViewIcon', 'View icon of the Resonance chat view.'));
 
 // called VIEWLET_ID in other places for some reason
 export const VOID_VIEW_CONTAINER_ID = 'workbench.view.void'
@@ -117,7 +115,7 @@ const container = viewContainerRegistry.registerViewContainer({
 	order: 1,
 
 	rejectAddedViews: true,
-	icon: FileAccess.asFileUri('vs/workbench/browser/parts/editor/media/letterpress-black.svg'),
+	icon: resonanceViewIcon,
 
 
 }, ViewContainerLocation.AuxiliaryBar, { doNotRegisterOpenCommand: true, isDefault: true });

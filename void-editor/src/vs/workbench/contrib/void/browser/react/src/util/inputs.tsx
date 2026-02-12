@@ -1629,7 +1629,7 @@ export const BlockCode = ({ initValue, language, maxHeight, showScrollbars, noBg
 		if (language) modelRef.current?.setLanguage(language)
 	}, [language])
 
-	return <div ref={divRef} className={`relative z-0 px-2 py-1 ${noBg ? '' : 'bg-void-bg-3'}`}>
+	return <div ref={divRef} className={`relative z-0 px-2 py-1 rounded-lg ${noBg ? '' : 'bg-white border border-[#E8E8E8]'}`} style={{ boxShadow: noBg ? 'none' : 'inset 0 1px 2px rgba(0, 0, 0, 0.04)' }}>
 		<WidgetComponent
 			className='@@bg-editor-style-override' // text-sm
 			ctor={useCallback((container) => {

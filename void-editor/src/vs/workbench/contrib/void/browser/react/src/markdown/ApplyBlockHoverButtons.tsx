@@ -217,7 +217,7 @@ export const StatusIndicatorForApplyButton = ({ applyBoxId, uri }: { applyBoxId:
 
 	const color = (
 		currStreamState === 'idle-no-changes' ? 'dark' :
-			currStreamState === 'streaming' ? 'orange' :
+			currStreamState === 'streaming' ? 'green' :
 				currStreamState === 'idle-has-changes' ? 'green' :
 					null
 	)

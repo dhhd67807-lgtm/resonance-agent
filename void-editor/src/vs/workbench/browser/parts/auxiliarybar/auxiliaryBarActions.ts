@@ -19,15 +19,15 @@ import { KeyCode, KeyMod } from '../../../../base/common/keyCodes.js';
 import { SwitchCompositeViewAction } from '../compositeBarActions.js';
 import { closeIcon } from '../panel/panelActions.js';
 
-const auxiliaryBarRightIcon = registerIcon('auxiliarybar-right-layout-icon', Codicon.layoutSidebarRight, localize('toggleAuxiliaryIconRight', 'Icon to toggle Resonance off in its right position.'));
-const auxiliaryBarRightOffIcon = registerIcon('auxiliarybar-right-off-layout-icon', Codicon.layoutSidebarRightOff, localize('toggleAuxiliaryIconRightOn', 'Icon to toggle Resonance on in its right position.'));
-const auxiliaryBarLeftIcon = registerIcon('auxiliarybar-left-layout-icon', Codicon.layoutSidebarLeft, localize('toggleAuxiliaryIconLeft', 'Icon to toggle Resonance in its left position.'));
-const auxiliaryBarLeftOffIcon = registerIcon('auxiliarybar-left-off-layout-icon', Codicon.layoutSidebarLeftOff, localize('toggleAuxiliaryIconLeftOn', 'Icon to toggle Resonance on in its left position.'));
+const auxiliaryBarRightIcon = registerIcon('auxiliarybar-right-layout-icon', Codicon.commentDiscussion, localize('toggleAuxiliaryIconRight', 'Icon to toggle Resonance off in its right position.'));
+const auxiliaryBarRightOffIcon = registerIcon('auxiliarybar-right-off-layout-icon', Codicon.comment, localize('toggleAuxiliaryIconRightOn', 'Icon to toggle Resonance on in its right position.'));
+const auxiliaryBarLeftIcon = registerIcon('auxiliarybar-left-layout-icon', Codicon.commentDiscussion, localize('toggleAuxiliaryIconLeft', 'Icon to toggle Resonance in its left position.'));
+const auxiliaryBarLeftOffIcon = registerIcon('auxiliarybar-left-off-layout-icon', Codicon.comment, localize('toggleAuxiliaryIconLeftOn', 'Icon to toggle Resonance on in its left position.'));
 
 export class ToggleAuxiliaryBarAction extends Action2 {
 
 	static readonly ID = 'workbench.action.toggleAuxiliaryBar';
-	static readonly LABEL = localize2('toggleAuxiliaryBar', "Toggle Resonance Visibility");
+	static readonly LABEL = localize2('toggleAuxiliaryBar', "Toggle Resonance Sidebar Visibility");
 
 	constructor() {
 		super({
@@ -81,7 +81,7 @@ registerAction2(class extends Action2 {
 	constructor() {
 		super({
 			id: 'workbench.action.closeAuxiliaryBar',
-			title: localize2('closeSecondarySideBar', 'Hide Void Side Bar'),
+			title: localize2('closeSecondarySideBar', 'Hide Resonance Sidebar'),
 			category: Categories.View,
 			precondition: AuxiliaryBarVisibleContext,
 			f1: true,
@@ -95,7 +95,7 @@ registerAction2(class extends Action2 {
 registerAction2(class FocusAuxiliaryBarAction extends Action2 {
 
 	static readonly ID = 'workbench.action.focusAuxiliaryBar';
-	static readonly LABEL = localize2('focusAuxiliaryBar', "Focus into Void Side Bar");
+	static readonly LABEL = localize2('focusAuxiliaryBar', "Focus into Resonance Sidebar");
 
 	constructor() {
 		super({
@@ -128,7 +128,7 @@ MenuRegistry.appendMenuItems([
 			group: '2_pane_toggles',
 			command: {
 				id: ToggleAuxiliaryBarAction.ID,
-				title: localize('toggleSecondarySideBar', "Toggle Void Side Bar"),
+				title: localize('toggleSecondarySideBar', "Toggle Resonance Sidebar"),
 				toggled: { condition: AuxiliaryBarVisibleContext, icon: auxiliaryBarLeftIcon },
 				icon: auxiliaryBarLeftOffIcon,
 			},
@@ -141,7 +141,7 @@ MenuRegistry.appendMenuItems([
 			group: '2_pane_toggles',
 			command: {
 				id: ToggleAuxiliaryBarAction.ID,
-				title: localize('toggleSecondarySideBar', "Toggle Void Side Bar"),
+				title: localize('toggleSecondarySideBar', "Toggle Resonance Sidebar"),
 				toggled: { condition: AuxiliaryBarVisibleContext, icon: auxiliaryBarRightIcon },
 				icon: auxiliaryBarRightOffIcon,
 			},
@@ -154,7 +154,7 @@ MenuRegistry.appendMenuItems([
 			group: '3_workbench_layout_move',
 			command: {
 				id: ToggleAuxiliaryBarAction.ID,
-				title: localize2('hideAuxiliaryBar', 'Hide Void Side Bar'),
+				title: localize2('hideAuxiliaryBar', 'Hide Resonance Sidebar'),
 			},
 			when: ContextKeyExpr.and(AuxiliaryBarVisibleContext, ContextKeyExpr.equals('viewContainerLocation', ViewContainerLocationToString(ViewContainerLocation.AuxiliaryBar))),
 			order: 2
@@ -166,7 +166,7 @@ registerAction2(class extends SwitchCompositeViewAction {
 	constructor() {
 		super({
 			id: 'workbench.action.previousAuxiliaryBarView',
-			title: localize2('previousAuxiliaryBarView', 'Previous Void Side Bar View'),
+			title: localize2('previousAuxiliaryBarView', 'Previous Resonance Sidebar View'),
 			category: Categories.View,
 			f1: true
 		}, ViewContainerLocation.AuxiliaryBar, -1);
@@ -177,7 +177,7 @@ registerAction2(class extends SwitchCompositeViewAction {
 	constructor() {
 		super({
 			id: 'workbench.action.nextAuxiliaryBarView',
-			title: localize2('nextAuxiliaryBarView', 'Next Void Side Bar View'),
+			title: localize2('nextAuxiliaryBarView', 'Next Resonance Sidebar View'),
 			category: Categories.View,
 			f1: true
 		}, ViewContainerLocation.AuxiliaryBar, 1);

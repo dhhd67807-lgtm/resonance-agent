@@ -18,7 +18,6 @@ import { IThemeService } from '../../../../platform/theme/common/themeService.js
 import { isRecentFolder, IWorkspacesService } from '../../../../platform/workspaces/common/workspaces.js';
 import { IHostService } from '../../../services/host/browser/host.js';
 import { ILabelService, Verbosity } from '../../../../platform/label/common/label.js';
-import { ColorScheme } from '../../web.api.js';
 import { OpenFileFolderAction, OpenFolderAction } from '../../actions/workspaceActions.js';
 import { IWindowOpenable } from '../../../../platform/window/common/window.js';
 import { splitRecentLabel } from '../../../../base/common/labels.js';
@@ -113,11 +112,10 @@ export class EditorGroupWatermark extends Disposable {
 
 		// void icon style
 		const updateTheme = () => {
-			const theme = this.themeService.getColorTheme().type
-			const isDark = theme === ColorScheme.DARK || theme === ColorScheme.HIGH_CONTRAST_DARK
 			elements.icon.style.maxWidth = '220px'
-			elements.icon.style.opacity = '50%'
-			elements.icon.style.filter = isDark ? '' : 'invert(1)' //brightness(.5)
+			elements.icon.style.opacity = '1' // Solid black, no transparency
+			// Don't invert - CSS handles the correct logo color via background-image
+			elements.icon.style.filter = '' 
 		}
 		updateTheme()
 		this._register(
