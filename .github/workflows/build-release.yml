@@ -41,13 +41,6 @@ jobs:
         run: npm ci --ignore-scripts
         shell: bash
       
-      - name: Run postinstall manually
-        working-directory: void-editor
-        env:
-          SHELL: /bin/bash
-        run: node build/npm/postinstall.js || true
-        shell: bash
-      
       - name: Install extension dependencies
         working-directory: void-editor/extensions/open-remote-ssh
         run: npm install
@@ -110,13 +103,6 @@ jobs:
           SHELL: /bin/bash
           npm_config_shell: /bin/bash
         run: npm ci --ignore-scripts
-        shell: bash
-      
-      - name: Run postinstall manually
-        working-directory: void-editor
-        env:
-          SHELL: /bin/bash
-        run: node build/npm/postinstall.js || true
         shell: bash
       
       - name: Install extension dependencies
