@@ -1420,23 +1420,6 @@ export class CodeApplication extends Disposable {
 		// this._checkForUpdatesOnStartup();
 	}
 
-	private _checkForUpdatesOnStartup(): void {
-		// Wait a short delay to ensure the app is stable
-		setTimeout(() => {
-			try {
-				// Get the update service and check for updates
-				this.mainInstantiationService.invokeFunction(async accessor => {
-					const voidUpdateService = accessor.get(IVoidUpdateService);
-
-					// Perform an explicit check (shows notification if update available)
-					await voidUpdateService.check(true);
-				});
-			} catch (error) {
-				this.logService.error('[Startup Update Check] Error:', error);
-			}
-		}, 2000); // 2 second delay for testing
-	}
-
 	private async installMutex(): Promise<void> {
 		const win32MutexName = this.productService.win32MutexName;
 		if (isWindows && win32MutexName) {

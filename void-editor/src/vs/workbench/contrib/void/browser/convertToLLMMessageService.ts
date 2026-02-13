@@ -327,7 +327,7 @@ const prepareMessages_XML_tools = (messages: SimpleLLMMessage[], supportsAnthrop
 							prevMsg.content = [{ type: 'text', text: prevMsg.content }];
 						}
 						if (Array.isArray(prevMsg.content)) {
-							prevMsg.content.push(...content);
+							prevMsg.content.push(...(content as any));
 						}
 					}
 				} else {
@@ -366,7 +366,7 @@ const prepareMessages_XML_tools = (messages: SimpleLLMMessage[], supportsAnthrop
 							prevMsg.content = [{ type: 'text', text: prevMsg.content }];
 						}
 						if (Array.isArray(prevMsg.content)) {
-							prevMsg.content.push(...imageContent);
+							prevMsg.content.push(...(imageContent as any));
 						}
 					}
 				}
