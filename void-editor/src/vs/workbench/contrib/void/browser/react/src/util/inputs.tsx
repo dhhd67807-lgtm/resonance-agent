@@ -1426,12 +1426,13 @@ export const VoidCustomDropdownBox = <T extends NonNullable<any>>({
 						width: (matchInputWidth
 							? (refs.reference.current instanceof HTMLElement ? refs.reference.current.offsetWidth : 0)
 							: Math.max(
+								320,
 								(refs.reference.current instanceof HTMLElement ? refs.reference.current.offsetWidth : 0),
 								(measureRef.current instanceof HTMLElement ? measureRef.current.offsetWidth : 0)
 							)),
 						backgroundColor: '#FFFFFF',
 						border: '1px solid #D4D4D4',
-						borderRadius: '12px',
+						borderRadius: '4px',
 						boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
 					}}
 					onWheel={(e) => e.stopPropagation()}

@@ -89,7 +89,7 @@ export const displayInfoOfProviderName = (providerName: ProviderName): DisplayIn
 		return { title: 'LM Studio', }
 	}
 	else if (providerName === 'openAICompatible') {
-		return { title: 'OpenAI-Compatible', }
+		return { title: 'Resonance', }
 	}
 	else if (providerName === 'nvidiaFree') {
 		return { title: 'NVIDIA Free', }

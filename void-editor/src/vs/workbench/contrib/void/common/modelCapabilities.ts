@@ -85,26 +85,21 @@ export const defaultModelsOfProvider = {
 	liteLLM: [],
 	lmStudio: [],
 	openAICompatible: [
-		// Claude models (19 total)
-		'claude-3.5-haiku',
-		'claude-3.5-sonnet',
-		'claude-3.7-sonnet',
-		'claude-3-7-sonnet-20250219',
+		// Claude models (11 total - organized by family: Opus, Sonnet, Haiku)
+		// Opus Family
 		'claude-4-opus',
-		'claude-4-sonnet',
-		'claude-4-sonnet-think',
-		'claude-4.1-opus',
-		'claude-4.5-sonnet',
-		'claude-4.5-sonnet-think',
-		'claude-haiku-4-5',
-		'claude-haiku-4-5-20251001',
 		'claude-opus-4-1-20250805',
 		'claude-opus-4-5-20251101',
-		'claude-sonnet-4',
+		// Sonnet Family
+		'claude-3.5-sonnet',
+		'claude-3-7-sonnet-20250219',
 		'claude-sonnet-4-20250514',
 		'claude-sonnet-4-20250514-think',
-		'claude-sonnet-4-5',
 		'claude-sonnet-4-5-20250929',
+		'claude-4.5-sonnet-think',
+		// Haiku Family
+		'claude-3.5-haiku',
+		'claude-haiku-4-5-20251001',
 	],
 	nvidiaFree: ['minimaxai/minimax-m2.1'],
 	gemini: [],

@@ -1161,7 +1161,7 @@ class EditCodeService extends Disposable implements IEditCodeService {
 	}
 
 
-	public instantlyApplySearchReplaceBlocks({ uri, searchReplaceBlocks }: { uri: URI, searchReplaceBlocks: string }) {
+	public async instantlyApplySearchReplaceBlocks({ uri, searchReplaceBlocks }: { uri: URI, searchReplaceBlocks: string }) {
 		// start diffzone
 		const res = this._startStreamingDiffZone({
 			uri,
@@ -1173,6 +1173,7 @@ class EditCodeService extends Disposable implements IEditCodeService {
 		if (!res) return
 		const { diffZone, onFinishEdit } = res
 
+		const originalCode = diffZone.originalCode
 
 		const onDone = () => {
 			diffZone._streamState = { isStreaming: false, }
@@ -1195,17 +1196,61 @@ class EditCodeService extends Disposable implements IEditCodeService {
 		}
 
 		try {
-			this._instantlyApplySRBlocks(uri, searchReplaceBlocks)
+			// Get the final content after applying search/replace blocks
+			const blocks = extractSearchReplaceBlocks(searchReplaceBlocks)
+			if (blocks.length === 0) throw new Error(`No Search/Replace blocks were received!`)
+
+			const { model } = this._voidModelService.getModel(uri)
+			if (!model) throw new Error(`Error applying Search/Replace blocks: File does not exist.`)
+			const modelStr = model.getValue(EndOfLinePreference.LF)
+			const modelStrLines = modelStr.split('\n')
+
+			const replacements: { origStart: number; origEnd: number; block: ExtractedSearchReplaceBlock }[] = []
+			for (const b of blocks) {
+				const res = findTextInCode(b.orig, modelStr, true, { returnType: 'lines' })
+				if (typeof res === 'string')
+					throw new Error(this._errContentOfInvalidStr(res, b.orig))
+				let [startLine, endLine] = res
+				startLine -= 1 // 0-index
+				endLine -= 1
+
+				// including newline before start
+				const origStart = (startLine !== 0 ?
+					modelStrLines.slice(0, startLine).join('\n') + '\n'
+					: '').length
+
+				// including endline at end
+				const origEnd = modelStrLines.slice(0, endLine + 1).join('\n').length - 1
+
+				replacements.push({ origStart, origEnd, block: b });
+			}
+			// sort in increasing order
+			replacements.sort((a, b) => a.origStart - b.origStart)
+
+			// ensure no overlap
+			for (let i = 1; i < replacements.length; i++) {
+				if (replacements[i].origStart <= replacements[i - 1].origEnd) {
+					throw new Error(this._errContentOfInvalidStr('Has overlap', replacements[i]?.block?.orig))
+				}
+			}
+
+			// apply each replacement from right to left (so indexes don't shift)
+			let newCode: string = modelStr
+			for (let i = replacements.length - 1; i >= 0; i--) {
+				const { origStart, origEnd, block } = replacements[i]
+				newCode = newCode.slice(0, origStart) + block.final + newCode.slice(origEnd + 1, Infinity)
+			}
+
+			// Stream the final content
+			await this._streamRewriteFile(uri, newCode, originalCode, diffZone, onDone)
 		}
 		catch (e) {
 			onError({ message: e + '', fullError: null })
 		}
-
-		onDone()
 	}
 
 
-	public instantlyRewriteFile({ uri, newContent }: { uri: URI, newContent: string }) {
+	public async instantlyRewriteFile({ uri, newContent }: { uri: URI, newContent: string }) {
 		// start diffzone
 		const res = this._startStreamingDiffZone({
 			uri,
@@ -1217,6 +1262,7 @@ class EditCodeService extends Disposable implements IEditCodeService {
 		if (!res) return
 		const { diffZone, onFinishEdit } = res
 
+		const originalCode = diffZone.originalCode
 
 		const onDone = () => {
 			diffZone._streamState = { isStreaming: false, }
@@ -1230,7 +1276,40 @@ class EditCodeService extends Disposable implements IEditCodeService {
 			}
 		}
 
-		this._writeURIText(uri, newContent, 'wholeFileRange', { shouldRealignDiffAreas: true })
+		// Stream the content character-by-character for visual effect
+		await this._streamRewriteFile(uri, newContent, originalCode, diffZone, onDone)
+	}
+
+	private async _streamRewriteFile(uri: URI, newContent: string, originalCode: string, diffZone: DiffZone, onDone: () => void) {
+		const latestStreamLocationMutable = {
+			line: diffZone.startLine,
+			col: 1,
+			originalCodeStartLine: 1,
+			addedSplitYet: false,
+		}
+
+		// Stream in chunks for better performance (50 chars at a time)
+		const CHUNK_SIZE = 50
+		const DELAY_MS = 10 // 10ms delay between chunks
+
+		let textSoFar = ''
+		for (let i = 0; i < newContent.length; i += CHUNK_SIZE) {
+			const chunk = newContent.slice(i, Math.min(i + CHUNK_SIZE, newContent.length))
+			textSoFar += chunk
+
+			// Write the streamed text
+			this._writeStreamedDiffZoneLLMText(uri, originalCode, textSoFar, chunk, latestStreamLocationMutable)
+			
+			// Update stream state line
+			const endLineInLlmTextSoFar = textSoFar.split('\n').length
+			diffZone._streamState.line = (diffZone.startLine - 1) + endLineInLlmTextSoFar
+
+			this._refreshStylesAndDiffsInURI(uri)
+
+			// Small delay to create streaming effect
+			await new Promise(resolve => setTimeout(resolve, DELAY_MS))
+		}
+
 		onDone()
 	}
 

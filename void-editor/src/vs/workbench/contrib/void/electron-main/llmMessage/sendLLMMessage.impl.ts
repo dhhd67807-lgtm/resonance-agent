@@ -21,6 +21,7 @@ import { extractReasoningWrapper, extractXMLToolsWrapper } from './extractGramma
 import { enforceToolCall } from './toolCallEnforcer.js';
 import { availableTools, InternalToolInfo } from '../../common/prompt/prompts.js';
 import { generateUuid } from '../../../../../base/common/uuid.js';
+import { retryWithExponentialBackoff } from './retryWithBackoff.js';
 
 const getGoogleApiKey = async () => {
 	// module‑level singleton
@@ -194,20 +195,32 @@ const _sendOpenAICompatibleFIM = async ({ messages: { prefix, suffix, stopTokens
 	}
 
 	const openai = await newOpenAICompatibleSDK({ providerName, settingsOfProvider, includeInPayload: additionalOpenAIPayload })
-	openai.completions
-		.create({
+	
+	retryWithExponentialBackoff(
+		() => openai.completions.create({
 			model: modelName,
 			prompt: prefix,
 			suffix: suffix,
 			stop: stopTokens,
 			max_tokens: 300,
-		})
+		}),
+		{
+			maxRetries: 3,
+			initialDelayMs: 1000,
+			maxDelayMs: 10000,
+			backoffMultiplier: 2,
+			retryableStatusCodes: [429, 503, 504],
+		}
+	)
 		.then(async response => {
 			const fullText = response.choices[0]?.text
 			onFinalMessage({ fullText, fullReasoning: '', anthropicReasoning: null });
 		})
 		.catch(error => {
 			if (error instanceof OpenAI.APIError && error.status === 401) { onError({ message: invalidApiKeyMessage(providerName), fullError: error }); }
+			else if (error instanceof OpenAI.APIError && error.status === 429) { 
+				onError({ message: `Rate limit exceeded. All retry attempts failed. Please wait a moment and try again. (${error.message})`, fullError: error }); 
+			}
 			else { onError({ message: error + '', fullError: error }); }
 		})
 }
@@ -357,8 +370,17 @@ const _sendOpenAICompatibleChat = async ({ messages, onText, onFinalMessage, onE
 	let toolId = ''
 	let toolParamsStr = ''
 
-	openai.chat.completions
-		.create(options)
+	// Wrap the API call with retry logic
+	retryWithExponentialBackoff(
+		() => openai.chat.completions.create(options),
+		{
+			maxRetries: 3,
+			initialDelayMs: 1000,
+			maxDelayMs: 10000,
+			backoffMultiplier: 2,
+			retryableStatusCodes: [429, 503, 504],
+		}
+	)
 		.then(async response => {
 			_setAborter(() => response.controller.abort())
 			// when receive text
@@ -414,15 +436,21 @@ const _sendOpenAICompatibleChat = async ({ messages, onText, onFinalMessage, onE
 					hasReasoning: !!fullReasoningSoFar,
 					hasToolCall: !!toolCall,
 					toolName: toolCall?.name,
-					wasEnforced: !toolName && !!toolCall
+					wasEnforced: !toolName && !!toolCall,
+					manuallyParseReasoning
 				})
 				const toolCallObj = toolCall ? { toolCall } : {}
-				onFinalMessage({ fullText: fullTextSoFar, fullReasoning: fullReasoningSoFar, anthropicReasoning: null, ...toolCallObj });
+				// For manual reasoning parse, pass empty fullReasoning and let the wrapper extract it
+				const reasoningToPass = manuallyParseReasoning ? '' : fullReasoningSoFar
+				onFinalMessage({ fullText: fullTextSoFar, fullReasoning: reasoningToPass, anthropicReasoning: null, ...toolCallObj });
 			}
 		})
 		// when error/fail - this catches errors of both .create() and .then(for await)
 		.catch(error => {
 			if (error instanceof OpenAI.APIError && error.status === 401) { onError({ message: invalidApiKeyMessage(providerName), fullError: error }); }
+			else if (error instanceof OpenAI.APIError && error.status === 429) { 
+				onError({ message: `Rate limit exceeded. All retry attempts failed. Please wait a moment and try again. (${error.message})`, fullError: error }); 
+			}
 			else { onError({ message: error + '', fullError: error }); }
 		})
 }
@@ -444,7 +472,16 @@ const _openaiCompatibleList = async ({ onSuccess: onSuccess_, onError: onError_,
 	}
 	try {
 		const openai = await newOpenAICompatibleSDK({ providerName, settingsOfProvider })
-		openai.models.list()
+		retryWithExponentialBackoff(
+			() => openai.models.list(),
+			{
+				maxRetries: 3,
+				initialDelayMs: 1000,
+				maxDelayMs: 10000,
+				backoffMultiplier: 2,
+				retryableStatusCodes: [429, 503, 504],
+			}
+		)
 			.then(async (response) => {
 				const models: OpenAIModel[] = []
 				models.push(...response.data)
@@ -454,7 +491,11 @@ const _openaiCompatibleList = async ({ onSuccess: onSuccess_, onError: onError_,
 				onSuccess({ models })
 			})
 			.catch((error) => {
-				onError({ error: error + '' })
+				if (error?.status === 429) {
+					onError({ error: `Rate limit exceeded. All retry attempts failed. Please wait a moment and try again. (${error})` })
+				} else {
+					onError({ error: error + '' })
+				}
 			})
 	}
 	catch (error) {

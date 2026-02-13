@@ -17,7 +17,7 @@ import { getIconClasses } from '../../../../../../../editor/common/services/getI
 import { FileKind } from '../../../../../../../platform/files/common/files.js';
 import { ErrorDisplay } from './ErrorDisplay.js';
 import { BlockCode, TextAreaFns, VoidCustomDropdownBox, VoidInputBox2, VoidSlider, VoidSwitch, VoidDiffEditor } from '../util/inputs.js';
-import { ModelDropdown, } from '../void-settings-tsx/ModelDropdown.js';
+import { ModelDropdownCustom } from '../void-settings-tsx/ModelDropdownCustom.js';
 import { PastThreadsList } from './SidebarThreadSelector.js';
 import { VOID_CTRL_L_ACTION_ID } from '../../../actionIDs.js';
 import { VOID_OPEN_SETTINGS_ACTION_ID } from '../../../voidSettingsPane.js';
@@ -427,7 +427,7 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
 					<div className='flex flex-col gap-y-1'>
 						<div className='flex items-center flex-wrap gap-x-2 gap-y-1 text-nowrap '>
 							{featureName === 'Chat' && <ChatModeDropdown className='text-xs text-void-fg-3 bg-void-bg-1 border border-void-border-2 rounded py-0.5 px-1' />}
-							<ModelDropdown featureName={featureName} className='text-xs text-void-fg-3 bg-void-bg-1 rounded py-0.5 px-1' />
+							<ModelDropdownCustom featureName={featureName} className='text-xs text-void-fg-3 bg-void-bg-1 rounded py-0.5 px-1' />
 						</div>
 					</div>
 				)}
@@ -907,7 +907,7 @@ const ToolHeaderWrapper = ({
 				background: '#FFFFFF',
 				border: '1px solid #E8E8E8',
 				borderRadius: children ? '8px 8px 0 0' : '8px',
-				boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.04)',
+				boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.5)',
 			}}
 			onClick={() => {
 				if (onClick) { onClick(); }
@@ -1095,7 +1095,7 @@ const EditTool = ({ toolMessage, threadId, messageIdx, content }: Parameters<Res
 	if (content && (toolMessage.type === 'success' || toolMessage.type === 'rejected')) {
 		if (toolMessage.name === 'edit_file') {
 			// For edit_file, content contains ORIGINAL/UPDATED blocks
-			// Parse the blocks to count changes
+			// Parse the blocks to count actual line changes
 			const blocks = content.split('<<<<<<< ORIGINAL');
 			let totalAdded = 0;
 			let totalDeleted = 0;
@@ -1108,14 +1108,15 @@ const EditTool = ({ toolMessage, threadId, messageIdx, content }: Parameters<Res
 					const originalPart = parts[0].trim();
 					const updatedPart = parts[1].split('>>>>>>> UPDATED')[0].trim();
 					
-					const originalLines = originalPart ? originalPart.split('\n').length : 0;
-					const updatedLines = updatedPart ? updatedPart.split('\n').length : 0;
+					// Count actual lines (not empty strings)
+					const originalLines = originalPart ? originalPart.split('\n').filter(l => l.trim()).length : 0;
+					const updatedLines = updatedPart ? updatedPart.split('\n').filter(l => l.trim()).length : 0;
 					
-					const blockDiff = updatedLines - originalLines;
-					if (blockDiff > 0) {
-						totalAdded += blockDiff;
-					} else if (blockDiff < 0) {
-						totalDeleted += Math.abs(blockDiff);
+					// Calculate net change for this block
+					if (updatedLines > originalLines) {
+						totalAdded += (updatedLines - originalLines);
+					} else if (originalLines > updatedLines) {
+						totalDeleted += (originalLines - updatedLines);
 					}
 				}
 			}
@@ -1130,10 +1131,14 @@ const EditTool = ({ toolMessage, threadId, messageIdx, content }: Parameters<Res
 		} else if (toolMessage.name === 'rewrite_file') {
 			// For rewrite, compare new content with original file
 			const { model } = voidModelService.getModel(params.uri);
+			
+			// Count lines in new content (filter out empty lines for accurate count)
+			const newLines = content.split('\n').filter(l => l.trim()).length;
+			
 			if (model) {
+				// File exists - show the diff
 				const originalContent = model.getValue();
-				const originalLines = originalContent.split('\n').length;
-				const newLines = content.split('\n').length;
+				const originalLines = originalContent.split('\n').filter(l => l.trim()).length;
 				
 				const diff = newLines - originalLines;
 				
@@ -1143,6 +1148,10 @@ const EditTool = ({ toolMessage, threadId, messageIdx, content }: Parameters<Res
 				} else if (diff < 0) {
 					linesDeleted = Math.abs(diff);
 				}
+				// If diff === 0, don't show any badge
+			} else {
+				// File doesn't exist (new file) - show all lines as added
+				linesAdded = newLines;
 			}
 		}
 	}
@@ -1194,11 +1203,14 @@ const EditTool = ({ toolMessage, threadId, messageIdx, content }: Parameters<Res
 
 		if (toolMessage.type === 'success' || toolMessage.type === 'rejected') {
 			const { result } = toolMessage
-			componentParams.bottomChildren = <BottomChildren title='Lint errors'>
-				{result?.lintErrors?.map((error, i) => (
-					<div key={i} className='whitespace-nowrap'>Lines {error.startLineNumber}-{error.endLineNumber}: {error.message}</div>
-				))}
-			</BottomChildren>
+			const lintErrorCount = result?.lintErrors?.length || 0
+			componentParams.bottomChildren = lintErrorCount > 0 ? (
+				<BottomChildren title={`!${lintErrorCount}`}>
+					{result?.lintErrors?.map((error, i) => (
+						<div key={i} className='whitespace-nowrap'>Lines {error.startLineNumber}-{error.endLineNumber}: {error.message}</div>
+					))}
+				</BottomChildren>
+			) : null
 		}
 		else if (toolMessage.type === 'tool_error') {
 			// error
@@ -1565,51 +1577,68 @@ const AssistantMessageComponent = ({ chatMessage, isCheckpointGhost, isCommitted
 	const accessor = useAccessor()
 	const chatThreadsService = accessor.get('IChatThreadService')
 
-	const reasoningStr = chatMessage.reasoning?.trim() || null
+	// Strip <think> tags from reasoning if present
+	let reasoningStr = chatMessage.reasoning?.trim() || null
+	if (reasoningStr) {
+		// Remove <think> and </think> tags
+		reasoningStr = reasoningStr.replace(/<\/?think>/gi, '').trim()
+	}
+	
+	// Also check if displayContent has <think> tags (for streaming - extract partial or complete thinking)
+	let displayContent = chatMessage.displayContent || ''
+	
+	// Check for complete <think>...</think> block
+	const completeThinkMatch = displayContent.match(/<think>([\s\S]*?)<\/think>/i)
+	if (completeThinkMatch) {
+		if (!reasoningStr) {
+			reasoningStr = completeThinkMatch[1].trim()
+		}
+		// Remove the complete <think> block from displayContent
+		displayContent = displayContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
+	}
+	// Check for incomplete <think> tag (streaming in progress)
+	else if (displayContent.includes('<think>')) {
+		const thinkStartIdx = displayContent.indexOf('<think>')
+		const contentBeforeThink = displayContent.substring(0, thinkStartIdx).trim()
+		const thinkingContent = displayContent.substring(thinkStartIdx + 7).trim() // 7 = length of '<think>'
+		
+		if (!reasoningStr && thinkingContent) {
+			reasoningStr = thinkingContent
+		}
+		// Show content before <think> tag, hide the thinking part during streaming
+		displayContent = contentBeforeThink
+	}
+	
 	const hasReasoning = !!reasoningStr
-	const isDoneReasoning = !!chatMessage.displayContent
+	const isThinkingComplete = isCommitted && hasReasoning
 	const thread = chatThreadsService.getCurrentThread()
-
-	// Debug logging
-	console.log('[AssistantMessage]', {
-		messageIdx,
-		hasReasoning,
-		reasoningLength: reasoningStr?.length || 0,
-		displayContentLength: chatMessage.displayContent?.length || 0,
-		isCommitted
-	})
 
 	const chatMessageLocation: ChatMessageLocation = {
 		threadId: thread.id,
 		messageIdx: messageIdx,
 	}
 
-	const isEmpty = !chatMessage.displayContent && !chatMessage.reasoning
+	const isEmpty = !displayContent && !reasoningStr
 	if (isEmpty) return null
 
 	return <>
-		{/* reasoning token - always show if reasoning exists */}
+		{/* reasoning - show expanded while streaming, collapsed after complete */}
 		{hasReasoning &&
 			<div className={`${isCheckpointGhost ? 'opacity-50' : ''}`}>
-				<ReasoningWrapper isDoneReasoning={isDoneReasoning} isStreaming={!isCommitted}>
-					<SmallProseWrapper>
-						<ChatMarkdownRender
-							string={reasoningStr}
-							chatMessageLocation={chatMessageLocation}
-							isApplyEnabled={false}
-							isLinkDetectionEnabled={true}
-						/>
-					</SmallProseWrapper>
-				</ReasoningWrapper>
+				<ReasoningDisplay 
+					reasoningStr={reasoningStr}
+					isComplete={isThinkingComplete}
+					chatMessageLocation={chatMessageLocation}
+				/>
 			</div>
 		}
 
 		{/* assistant message */}
-		{chatMessage.displayContent &&
+		{displayContent &&
 			<div className={`${isCheckpointGhost ? 'opacity-50' : ''}`}>
 				<ProseWrapper isStreaming={!isCommitted}>
 					<ChatMarkdownRender
-						string={chatMessage.displayContent || ''}
+						string={displayContent}
 						chatMessageLocation={chatMessageLocation}
 						isApplyEnabled={true}
 						isLinkDetectionEnabled={true}
@@ -1621,8 +1650,120 @@ const AssistantMessageComponent = ({ chatMessage, isCheckpointGhost, isCommitted
 
 }
 
+const ReasoningDisplay = ({ reasoningStr, isComplete, chatMessageLocation }: { reasoningStr: string, isComplete: boolean, chatMessageLocation: ChatMessageLocation }) => {
+	const [isExpanded, setIsExpanded] = useState(!isComplete)
+	const [hasBeenManuallyToggled, setHasBeenManuallyToggled] = useState(false)
+
+	// Auto-collapse when thinking completes with delay for smooth transition
+	// BUT only if user hasn't manually toggled it
+	useEffect(() => {
+		if (isComplete && isExpanded && !hasBeenManuallyToggled) {
+			const timer = setTimeout(() => {
+				setIsExpanded(false)
+			}, 500) // 500ms delay before collapsing
+			return () => clearTimeout(timer)
+		}
+	}, [isComplete, isExpanded, hasBeenManuallyToggled])
+
+	const handleToggle = (e: React.MouseEvent) => {
+		e.preventDefault()
+		e.stopPropagation()
+		setHasBeenManuallyToggled(true)
+		setIsExpanded(!isExpanded)
+	}
+
+	return (
+		<div className="my-2">
+			{/* Header with Reasoning label and dropdown button */}
+			<div 
+				className="flex items-center gap-2 cursor-pointer text-void-fg-3 hover:text-void-fg-2 transition-colors mb-1"
+				onClick={handleToggle}
+				onMouseDown={(e) => e.stopPropagation()}
+			>
+				{!isComplete ? (
+					<motion.span 
+						className="text-sm font-medium"
+						style={{
+							background: 'linear-gradient(90deg, rgba(156, 163, 175, 0.4) 0%, rgba(100, 116, 139, 0.8) 50%, rgba(156, 163, 175, 0.4) 100%)',
+							backgroundSize: '200% 100%',
+							WebkitBackgroundClip: 'text',
+							WebkitTextFillColor: 'transparent',
+							backgroundClip: 'text',
+						}}
+						initial={{ backgroundPosition: '100% center' }}
+						animate={{ backgroundPosition: '-100% center' }}
+						transition={{
+							repeat: Infinity,
+							duration: 2,
+							ease: 'linear',
+						}}
+					>
+						Reasoning
+					</motion.span>
+				) : (
+					<span className="text-sm font-medium">Reasoning</span>
+				)}
+				<motion.div
+					animate={{ rotate: isExpanded ? 90 : 0 }}
+					transition={{ duration: 0.2, ease: 'easeInOut' }}
+				>
+					<ChevronRight size={14} />
+				</motion.div>
+			</div>
+
+			{/* Reasoning content with smooth collapse animation */}
+			<motion.div
+				initial={false}
+				animate={{
+					height: isExpanded ? 'auto' : 0,
+					opacity: isExpanded ? 1 : 0,
+				}}
+				transition={{
+					height: { duration: 0.3, ease: 'easeInOut' },
+					opacity: { duration: 0.2, ease: 'easeInOut' },
+				}}
+				style={{ overflow: 'hidden' }}
+			>
+				<div className="text-void-fg-3 text-sm italic">
+					<SmallProseWrapper>
+						<ChatMarkdownRender
+							string={reasoningStr}
+							chatMessageLocation={chatMessageLocation}
+							isApplyEnabled={false}
+							isLinkDetectionEnabled={true}
+						/>
+					</SmallProseWrapper>
+				</div>
+			</motion.div>
+		</div>
+	)
+}
+
 const ReasoningWrapper = ({ isDoneReasoning, isStreaming, children }: { isDoneReasoning: boolean, isStreaming: boolean, children: React.ReactNode }) => {
 	const [isExpanded, setIsExpanded] = useState(false)
+	const [thinkingTime, setThinkingTime] = useState(0)
+	const startTimeRef = useRef<number | null>(null)
+
+	// Track thinking time
+	useEffect(() => {
+		if (isStreaming && !startTimeRef.current) {
+			startTimeRef.current = Date.now()
+		}
+
+		if (isStreaming) {
+			const interval = setInterval(() => {
+				if (startTimeRef.current) {
+					setThinkingTime(Math.floor((Date.now() - startTimeRef.current) / 1000))
+				}
+			}, 100)
+			return () => clearInterval(interval)
+		} else if (startTimeRef.current && thinkingTime === 0) {
+			// Finalize time when streaming stops
+			setThinkingTime(Math.floor((Date.now() - startTimeRef.current) / 1000))
+		}
+	}, [isStreaming])
+
+	const displayTime = thinkingTime > 0 ? `${thinkingTime}s` : '0s'
 
 	return (
 		<div className="my-2 border border-void-border-3 rounded-lg overflow-hidden" style={{ background: 'transparent' }}>
@@ -1636,7 +1777,7 @@ const ReasoningWrapper = ({ isDoneReasoning, isStreaming, children }: { isDoneRe
 			>
 				<div className="flex items-center gap-2">
 					<span className="text-void-fg-2 text-sm font-medium">
-						{isStreaming ? '🧠 Thinking...' : '🧠 Thinking'}
+						{isStreaming ? `Thinking...` : `Thought for ${displayTime}`}
 					</span>
 				</div>
 				<ChevronRight
@@ -1732,6 +1873,11 @@ const titleOfBuiltinToolName = {
 		done: (filename?: string) => 'Killed terminal', 
 		proposed: (filename?: string) => 'Kill terminal', 
 		running: (filename?: string) => loadingTitleWrapper('Killing terminal') 
+	},
+	'read_terminal_output': { 
+		done: (filename?: string) => 'Read terminal output', 
+		proposed: (filename?: string) => 'Read terminal output', 
+		running: (filename?: string) => loadingTitleWrapper('Reading terminal output') 
 	},
 	'read_lint_errors': { 
 		done: (filename?: string) => 'Read lint errors', 
@@ -1899,6 +2045,10 @@ const toolNameToDesc = (toolName: BuiltinToolName, _toolParams: BuiltinToolCallP
 			const toolParams = _toolParams as BuiltinToolCallParams['kill_persistent_terminal']
 			return { desc1: toolParams.persistentTerminalId }
 		},
+		'read_terminal_output': () => {
+			const toolParams = _toolParams as BuiltinToolCallParams['read_terminal_output']
+			return { desc1: toolParams.persistentTerminalId }
+		},
 		'get_dir_tree': () => {
 			const toolParams = _toolParams as BuiltinToolCallParams['get_dir_tree']
 			return {
@@ -1998,7 +2148,7 @@ export const ToolChildrenWrapper = ({ children, className }: { children: React.R
 				backgroundColor: '#FFFFFF',
 				border: '1px solid #E8E8E8',
 				borderTop: 'none',
-				boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.04)',
+				boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.5)',
 			}}
 		>
 			{children}
@@ -2013,7 +2163,7 @@ export const CodeChildren = ({ children, className }: { children: React.ReactNod
 			color: '#1A1A1A',
 			lineHeight: '1.6',
 			fontFamily: '"SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
-			boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.04)',
+			boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.5)',
 		}}
 	>
 		<div className='!select-text cursor-auto'>
@@ -2248,10 +2398,10 @@ const CommandTool = ({ toolMessage, type, threadId }: { threadId: string } & ({
 			language = 'rust';
 		}
 
-		// Show command with $ prefix
+		// Show command with > prefix
 		componentParams.children = <ToolChildrenWrapper>
 			<CodeChildren>
-				<BlockCode initValue={`$ ${command}`} language={language} noBg={true} />
+				<BlockCode initValue={`> ${command}`} language={language} noBg={true} />
 			</CodeChildren>
 		</ToolChildrenWrapper>
 		
@@ -2295,7 +2445,7 @@ const CommandTool = ({ toolMessage, type, threadId }: { threadId: string } & ({
 		// Show command in main area
 		componentParams.children = <ToolChildrenWrapper>
 			<CodeChildren>
-				<BlockCode initValue={`$ ${command}`} language={language} noBg={true} />
+				<BlockCode initValue={`> ${command}`} language={language} noBg={true} />
 			</CodeChildren>
 		</ToolChildrenWrapper>
 		
@@ -2320,7 +2470,7 @@ const CommandTool = ({ toolMessage, type, threadId }: { threadId: string } & ({
 		
 		componentParams.children = <ToolChildrenWrapper>
 			<CodeChildren>
-				<BlockCode initValue={`$ ${command}`} language={language} noBg={true} />
+				<BlockCode initValue={`> ${command}`} language={language} noBg={true} />
 			</CodeChildren>
 		</ToolChildrenWrapper>
 		
@@ -2921,6 +3071,58 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: Res
 			return <ToolHeaderWrapper {...componentParams} />
 		},
 	},
+	'read_terminal_output': {
+		resultWrapper: ({ toolMessage }) => {
+			const accessor = useAccessor()
+			const terminalToolsService = accessor.get('ITerminalToolService')
+
+			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor)
+			const title = getTitle(toolMessage)
+			const icon = null
+
+			if (toolMessage.type === 'tool_request') return null // do not show past requests
+
+			const isError = false
+			const isRejected = toolMessage.type === 'rejected'
+			const isRunning = toolMessage.type === 'running_now'
+			const { rawParams, params } = toolMessage
+			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, isRunning, }
+
+			if (toolMessage.type === 'success') {
+				const { result } = toolMessage
+				const { persistentTerminalId } = params
+				
+				// Set terminal name as desc1
+				componentParams.desc1 = persistentTerminalNameOfId(persistentTerminalId)
+				componentParams.onClick = () => terminalToolsService.focusPersistentTerminal(persistentTerminalId)
+				
+				// Show full terminal output in the main children area (like run_command)
+				if (result && result.output) {
+					componentParams.children = <ToolChildrenWrapper>
+						<CodeChildren>
+							<BlockCode initValue={result.output} language='shell' noBg={true} />
+						</CodeChildren>
+					</ToolChildrenWrapper>
+				} else {
+					componentParams.children = <ToolChildrenWrapper>
+						<CodeChildren>
+							<div style={{ color: '#9CA3AF', fontStyle: 'italic' }}>No output</div>
+						</CodeChildren>
+					</ToolChildrenWrapper>
+				}
+			}
+			else if (toolMessage.type === 'tool_error') {
+				const { result } = toolMessage
+				componentParams.bottomChildren = <BottomChildren title='Error'>
+					<CodeChildren>
+						{result}
+					</CodeChildren>
+				</BottomChildren>
+			}
+
+			return <ToolHeaderWrapper {...componentParams} />
+		},
+	},
 };
 
 
@@ -3044,13 +3246,8 @@ const _ChatBubble = ({ threadId, chatMessage, currCheckpointIdx, isCommitted, me
 	}
 
 	else if (role === 'checkpoint') {
-		return <Checkpoint
-			threadId={threadId}
-			message={chatMessage}
-			messageIdx={messageIdx}
-			isCheckpointGhost={isCheckpointGhost}
-			threadIsRunning={!!chatIsRunning}
-		/>
+		// Hide checkpoint - don't render anything
+		return null
 	}
 
 }

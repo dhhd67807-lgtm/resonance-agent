@@ -162,7 +162,7 @@ const AddButton = ({ disabled, text = 'Add', ...props }: { disabled?: boolean, t
 
 	return <button
 		disabled={disabled}
-		className={`bg-[#0e70c0] px-3 py-1 text-white rounded-sm ${!disabled ? 'hover:bg-[#1177cb] cursor-pointer' : 'opacity-50 cursor-not-allowed bg-opacity-70'}`}
+		className={`bg-black px-3 py-1 text-white rounded-sm ${!disabled ? 'hover:bg-gray-800 cursor-pointer' : 'opacity-50 cursor-not-allowed bg-opacity-70'}`}
 		{...props}
 	>{text}</button>
 
@@ -358,7 +358,7 @@ const SimpleModelSettingsDialog = ({
 					</VoidButtonBgDarken>
 					<VoidButtonBgDarken
 						onClick={onSave}
-						className="px-3 py-1 bg-[#0e70c0] text-white"
+						className="px-3 py-1 bg-black text-white"
 					>
 						Save
 					</VoidButtonBgDarken>
@@ -409,22 +409,21 @@ export const ModelDump = ({ filteredProviders }: { filteredProviders?: ProviderN
 
 	// Add model handler
 	const handleAddModel = () => {
-		if (!userChosenProviderName) {
-			setErrorString('Please select a provider.');
-			return;
-		}
+		// Default to nvidiaFree if no provider selected
+		const providerToUse = userChosenProviderName || 'nvidiaFree';
+		
 		if (!modelName) {
 			setErrorString('Please enter a model name.');
 			return;
 		}
 
 		// Check if model already exists
-		if (settingsState.settingsOfProvider[userChosenProviderName].models.find(m => m.modelName === modelName)) {
+		if (settingsState.settingsOfProvider[providerToUse].models.find(m => m.modelName === modelName)) {
 			setErrorString(`This model already exists.`);
 			return;
 		}
 
-		settingsStateService.addModel(userChosenProviderName, modelName);
+		settingsStateService.addModel(providerToUse, modelName);
 		setShowCheckmark(true);
 		setTimeout(() => {
 			setShowCheckmark(false);
@@ -454,9 +453,9 @@ export const ModelDump = ({ filteredProviders }: { filteredProviders?: ProviderN
 
 
 			const detailAboutModel = type === 'autodetected' ?
-				<Asterisk size={14} className="inline-block align-text-top brightness-115 stroke-[2] text-[#0e70c0]" data-tooltip-id='void-tooltip' data-tooltip-place='right' data-tooltip-content='Detected locally' />
+				<Asterisk size={14} className="inline-block align-text-top brightness-115 stroke-[2] text-black dark:text-white" data-tooltip-id='void-tooltip' data-tooltip-place='right' data-tooltip-content='Detected locally' />
 				: type === 'custom' ?
-					<Asterisk size={14} className="inline-block align-text-top brightness-115 stroke-[2] text-[#0e70c0]" data-tooltip-id='void-tooltip' data-tooltip-place='right' data-tooltip-content='Custom model' />
+					<Asterisk size={14} className="inline-block align-text-top brightness-115 stroke-[2] text-black dark:text-white" data-tooltip-id='void-tooltip' data-tooltip-place='right' data-tooltip-content='Custom model' />
 					: undefined
 
 			const hasOverrides = !!settingsState.overridesOfModel?.[providerName]?.[modelName]
@@ -474,8 +473,8 @@ export const ModelDump = ({ filteredProviders }: { filteredProviders?: ProviderN
 				{/* right part is anything that fits */}
 				<div className="flex items-center gap-2 w-fit">
 
-					{/* Advanced Settings button (gear). Hide entirely when provider/model disabled. */}
-					{disabled ? null : (
+					{/* Advanced Settings button (gear). Hide entirely when provider/model disabled or when provider is Resonance or NVIDIA. */}
+					{disabled || providerName === 'openAICompatible' || providerName === 'nvidiaFree' ? null : (
 						<div className="w-5 flex items-center justify-center">
 							<button
 								onClick={() => { setOpenSettingsModel({ modelName, providerName, type }) }}
@@ -524,17 +523,17 @@ export const ModelDump = ({ filteredProviders }: { filteredProviders?: ProviderN
 		{/* Add Model Section */}
 		{showCheckmark ? (
 			<div className="mt-4">
-				<AnimatedCheckmarkButton text='Added' className="bg-[#0e70c0] text-white px-3 py-1 rounded-sm" />
+				<AnimatedCheckmarkButton text='Added' className="bg-black text-white px-3 py-1 rounded-sm" />
 			</div>
 		) : isAddModelOpen ? (
 			<div className="mt-4">
 				<form className="flex items-center gap-2">
 
-					{/* Provider dropdown */}
+					{/* Provider dropdown - only show NVIDIA Free */}
 					<ErrorBoundary>
 						<VoidCustomDropdownBox
-							options={providersToShow}
-							selectedOption={userChosenProviderName}
+							options={['nvidiaFree']}
+							selectedOption={userChosenProviderName || 'nvidiaFree'}
 							onChangeOption={(pn) => setUserChosenProviderName(pn)}
 							getOptionDisplayName={(pn) => pn ? displayInfoOfProviderName(pn).title : 'Provider Name'}
 							getOptionDropdownName={(pn) => pn ? displayInfoOfProviderName(pn).title : 'Provider Name'}
@@ -559,7 +558,7 @@ export const ModelDump = ({ filteredProviders }: { filteredProviders?: ProviderN
 					<ErrorBoundary>
 						<AddButton
 							type='button'
-							disabled={!modelName || !userChosenProviderName}
+							disabled={!modelName}
 							onClick={handleAddModel}
 						/>
 					</ErrorBoundary>
@@ -1147,7 +1146,7 @@ export const Settings = () => {
 								className={`
           py-2 px-4 rounded-md text-left transition-all duration-200
           ${selectedSection === tab
-										? 'bg-[#0e70c0]/80 text-white font-medium shadow-sm'
+										? 'bg-black text-white font-medium shadow-sm'
 										: 'bg-void-bg-2 hover:bg-void-bg-2/80 text-void-fg-1'}
         `}
 							>
@@ -1164,7 +1163,7 @@ export const Settings = () => {
 
 					<div className='max-w-3xl'>
 
-						<h1 className='text-2xl w-full'>{`Void's Settings`}</h1>
+						<h1 className='text-2xl w-full'>{`Settings`}</h1>
 
 						<div className='w-full h-[1px] my-2' />
 

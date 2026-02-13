@@ -308,6 +308,11 @@ export class ToolsService implements IToolsService {
 				const persistentTerminalId = validateProposedTerminalId(terminalIdUnknown);
 				return { persistentTerminalId };
 			},
+			read_terminal_output: (params: RawToolParamsObj) => {
+				const { persistent_terminal_id: terminalIdUnknown } = params;
+				const persistentTerminalId = validateProposedTerminalId(terminalIdUnknown);
+				return { persistentTerminalId };
+			},
 
 		}
 
@@ -455,8 +460,8 @@ export class ToolsService implements IToolsService {
 				}
 				await editCodeService.callBeforeApplyOrEdit(uri)
 				
-				// Use instant apply - more reliable than streaming for complete content
-				editCodeService.instantlyRewriteFile({ uri, newContent })
+				// Use instant apply with streaming for visual feedback
+				await editCodeService.instantlyRewriteFile({ uri, newContent })
 				
 				// Open file in editor after content is written
 				await timeout(100);
@@ -491,8 +496,8 @@ export class ToolsService implements IToolsService {
 				}
 				await editCodeService.callBeforeApplyOrEdit(uri)
 				
-				// Use instant apply - more reliable than streaming for complete content
-				editCodeService.instantlyApplySearchReplaceBlocks({ uri, searchReplaceBlocks })
+				// Use instant apply with streaming for visual feedback
+				await editCodeService.instantlyApplySearchReplaceBlocks({ uri, searchReplaceBlocks })
 
 				// at end, get lint errors
 				const lintErrorsPromise = Promise.resolve().then(async () => {
@@ -520,6 +525,10 @@ export class ToolsService implements IToolsService {
 				// Close the background terminal by sending exit
 				await this.terminalToolService.killPersistentTerminal(persistentTerminalId)
 				return { result: {} }
+			},
+			read_terminal_output: async ({ persistentTerminalId }) => {
+				const output = await this.terminalToolService.readTerminal(persistentTerminalId)
+				return { result: { output } }
 			},
 		}
 
@@ -623,6 +632,9 @@ export class ToolsService implements IToolsService {
 			},
 			kill_persistent_terminal: (params, _result) => {
 				return `Successfully closed terminal "${params.persistentTerminalId}".`;
+			},
+			read_terminal_output: (params, result) => {
+				return `Terminal output from "${params.persistentTerminalId}":\n${result.output}`;
 			},
 		}
 

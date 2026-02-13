@@ -82,7 +82,17 @@ export class LLMMessageService extends Disposable implements ILLMMessageService 
 		this._register((this.channel.listen('onError_sendLLMMessage') satisfies Event<EventLLMMessageOnErrorParams>)(e => {
 			this.llmMessageHooks.onError[e.requestId]?.(e);
 			this._clearChannelHooks(e.requestId);
-			console.error('Error in LLMMessageService:', JSON.stringify(e))
+			
+			// Log with more context for rate limit errors
+			if (e.message?.includes('Rate limit') || e.message?.includes('429')) {
+				console.error('LLM Rate Limit Error:', {
+					requestId: e.requestId,
+					message: e.message,
+					fullError: e.fullError
+				});
+			} else {
+				console.error('Error in LLMMessageService:', JSON.stringify(e));
+			}
 		}))
 		// .list()
 		this._register((this.channel.listen('onSuccess_list_ollama') satisfies Event<EventModelListOnSuccessParams<OllamaModelResponse>>)(e => {

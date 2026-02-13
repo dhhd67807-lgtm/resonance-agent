@@ -969,6 +969,38 @@
 	line-height: 24px;
 }
 
+/* Make start-container buttons vertical and black */
+.monaco-workbench .part.editor > .content .gettingStartedContainer .start-container li {
+	white-space: normal;
+	display: block;
+	width: 100%;
+	margin-bottom: 8px;
+}
+
+.monaco-workbench .part.editor > .content .gettingStartedContainer .start-container .button-link {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	background-color: #000000;
+	color: #ffffff;
+	padding: 12px 16px;
+	border-radius: 8px;
+	width: 100%;
+	box-sizing: border-box;
+	transition: background-color 150ms;
+}
+
+.monaco-workbench .part.editor > .content .gettingStartedContainer .start-container .button-link:hover {
+	background-color: #2a2a2a;
+	color: #ffffff;
+}
+
+.monaco-workbench .part.editor > .content .gettingStartedContainer .start-container ul {
+	max-width: 400px;
+	margin: 0 auto;
+}
+
+
 
 .monaco-workbench .part.editor > .content .gettingStartedContainer a:not(.hide-category-button):hover {
 	color: var(--vscode-textLink-activeForeground);

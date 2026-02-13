@@ -543,11 +543,11 @@ const WelcomeScreen = () => {
 			</svg>
 
 			{/* Action Cards - Centered horizontally, text only */}
-			<div className="flex flex-row gap-3 w-full max-w-[800px]">
+			<div className="flex flex-col gap-3 w-full max-w-[400px]">
 				{/* Open Project Card */}
 				<button
 					onClick={handleOpenFolder}
-					className="flex items-center justify-center bg-pink-500 hover:bg-pink-600 rounded-lg py-3 px-4 flex-1 transition-all duration-150 cursor-pointer"
+					className="flex items-center justify-center bg-black hover:bg-gray-800 rounded-lg py-3 px-4 w-full transition-all duration-150 cursor-pointer"
 					tabIndex={0}
 					role="button"
 					aria-label="Open a folder or project"
@@ -559,7 +559,7 @@ const WelcomeScreen = () => {
 				{/* Clone Repo Card */}
 				<button
 					onClick={handleCloneRepo}
-					className="flex items-center justify-center bg-pink-500 hover:bg-pink-600 rounded-lg py-3 px-4 flex-1 transition-all duration-150 cursor-pointer"
+					className="flex items-center justify-center bg-black hover:bg-gray-800 rounded-lg py-3 px-4 w-full transition-all duration-150 cursor-pointer"
 					tabIndex={0}
 					role="button"
 					aria-label="Clone a git repository"
@@ -571,7 +571,7 @@ const WelcomeScreen = () => {
 				{/* Connect via SSH Card */}
 				<button
 					onClick={handleOpenSSH}
-					className="flex items-center justify-center bg-pink-500 hover:bg-pink-600 rounded-lg py-3 px-4 flex-1 transition-all duration-150 cursor-pointer"
+					className="flex items-center justify-center bg-black hover:bg-gray-800 rounded-lg py-3 px-4 w-full transition-all duration-150 cursor-pointer"
 					tabIndex={0}
 					role="button"
 					aria-label="Connect to a remote server via SSH"
@@ -645,11 +645,11 @@ const ActionCardsPage = ({ pageIndex, setPageIndex }: { pageIndex: number, setPa
 			</svg>
 
 			{/* Action Cards - Centered horizontally, text only */}
-			<div className="flex flex-row gap-3 w-full max-w-[800px]">
+			<div className="flex flex-col gap-3 w-full max-w-[400px]">
 				{/* Open Project Card */}
 				<button
 					onClick={handleOpenFolder}
-					className="flex items-center justify-center bg-pink-500 hover:bg-pink-600 rounded-lg py-3 px-4 flex-1 transition-all duration-150 cursor-pointer"
+					className="flex items-center justify-center bg-black hover:bg-gray-800 rounded-lg py-3 px-4 w-full transition-all duration-150 cursor-pointer"
 					tabIndex={0}
 					role="button"
 					aria-label="Open a folder or project"
@@ -661,7 +661,7 @@ const ActionCardsPage = ({ pageIndex, setPageIndex }: { pageIndex: number, setPa
 				{/* Clone Repo Card */}
 				<button
 					onClick={handleCloneRepo}
-					className="flex items-center justify-center bg-pink-500 hover:bg-pink-600 rounded-lg py-3 px-4 flex-1 transition-all duration-150 cursor-pointer"
+					className="flex items-center justify-center bg-black hover:bg-gray-800 rounded-lg py-3 px-4 w-full transition-all duration-150 cursor-pointer"
 					tabIndex={0}
 					role="button"
 					aria-label="Clone a git repository"
@@ -673,7 +673,7 @@ const ActionCardsPage = ({ pageIndex, setPageIndex }: { pageIndex: number, setPa
 				{/* Connect via SSH Card */}
 				<button
 					onClick={handleOpenSSH}
-					className="flex items-center justify-center bg-pink-500 hover:bg-pink-600 rounded-lg py-3 px-4 flex-1 transition-all duration-150 cursor-pointer"
+					className="flex items-center justify-center bg-black hover:bg-gray-800 rounded-lg py-3 px-4 w-full transition-all duration-150 cursor-pointer"
 					tabIndex={0}
 					role="button"
 					aria-label="Connect to a remote server via SSH"
