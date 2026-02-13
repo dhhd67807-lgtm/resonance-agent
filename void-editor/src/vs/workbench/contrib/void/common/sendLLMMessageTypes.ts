@@ -29,6 +29,15 @@ export const getErrorMessage: (error: unknown) => string = (error) => {
 
 
 
+export type ImageContent = {
+	type: 'image';
+	source: {
+		type: 'base64';
+		media_type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+		data: string; // base64 encoded
+	};
+};
+
 export type AnthropicLLMChatMessage = {
 	role: 'assistant',
 	content: string | (AnthropicReasoning | { type: 'text'; text: string }
@@ -37,12 +46,19 @@ export type AnthropicLLMChatMessage = {
 } | {
 	role: 'user',
 	content: string | (
-		{ type: 'text'; text: string; } | { type: 'tool_result'; tool_use_id: string; content: string; }
+		{ type: 'text'; text: string; } | { type: 'tool_result'; tool_use_id: string; content: string; } | ImageContent
 	)[]
 }
+export type OpenAIImageContent = {
+	type: 'image_url';
+	image_url: {
+		url: string; // data URL with base64
+	};
+};
+
 export type OpenAILLMChatMessage = {
 	role: 'system' | 'user' | 'developer';
-	content: string;
+	content: string | ({ type: 'text'; text: string } | OpenAIImageContent)[];
 } | {
 	role: 'assistant',
 	content: string | (AnthropicReasoning | { type: 'text'; text: string })[];

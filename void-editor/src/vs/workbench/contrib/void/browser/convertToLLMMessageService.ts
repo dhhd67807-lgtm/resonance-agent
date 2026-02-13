@@ -5,10 +5,10 @@ import { registerSingleton, InstantiationType } from '../../../../platform/insta
 import { createDecorator } from '../../../../platform/instantiation/common/instantiation.js';
 import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
 import { IEditorService } from '../../../services/editor/common/editorService.js';
-import { ChatMessage } from '../common/chatThreadServiceTypes.js';
+import { ChatMessage, ImageAttachment } from '../common/chatThreadServiceTypes.js';
 import { getIsReasoningEnabledState, getReservedOutputTokenSpace, getModelCapabilities } from '../common/modelCapabilities.js';
 import { reParsedToolXMLString, chat_systemMessage } from '../common/prompt/prompts.js';
-import { AnthropicLLMChatMessage, AnthropicReasoning, GeminiLLMChatMessage, LLMChatMessage, LLMFIMMessage, OpenAILLMChatMessage, RawToolParamsObj } from '../common/sendLLMMessageTypes.js';
+import { AnthropicLLMChatMessage, AnthropicReasoning, GeminiLLMChatMessage, LLMChatMessage, LLMFIMMessage, OpenAILLMChatMessage, RawToolParamsObj, ImageContent, OpenAIImageContent } from '../common/sendLLMMessageTypes.js';
 import { IVoidSettingsService } from '../common/voidSettingsService.js';
 import { ChatMode, FeatureName, ModelSelection, ProviderName } from '../common/voidSettingsTypes.js';
 import { IDirectoryStrService } from '../common/directoryStrService.js';
@@ -32,6 +32,7 @@ type SimpleLLMMessage = {
 } | {
 	role: 'user';
 	content: string;
+	images?: ImageAttachment[];
 } | {
 	role: 'assistant';
 	content: string;
@@ -75,6 +76,39 @@ const prepareMessages_openai_tools = (messages: SimpleLLMMessage[]): AnthropicOr
 
 	for (let i = 0; i < messages.length; i += 1) {
 		const currMsg = messages[i]
+
+		if (currMsg.role === 'user') {
+			// Format user message with images if present
+			if (currMsg.images && currMsg.images.length > 0) {
+				const content: ({ type: 'text'; text: string } | OpenAIImageContent)[] = [];
+				
+				// Add text first for OpenAI
+				if (currMsg.content) {
+					content.push({
+						type: 'text',
+						text: currMsg.content
+					});
+				}
+				
+				// Add images
+				for (const image of currMsg.images) {
+					content.push({
+						type: 'image_url',
+						image_url: {
+							url: `data:${image.mimeType};base64,${image.data}`
+						}
+					});
+				}
+				
+				newMessages.push({
+					role: 'user',
+					content
+				});
+			} else {
+				newMessages.push(currMsg);
+			}
+			continue;
+		}
 
 		if (currMsg.role !== 'tool') {
 			newMessages.push(currMsg)
@@ -164,9 +198,39 @@ const prepareMessages_anthropic_tools = (messages: SimpleLLMMessage[], supportsA
 		}
 
 		if (currMsg.role === 'user') {
-			newMessages[i] = {
-				role: 'user',
-				content: currMsg.content,
+			// Format user message with images if present
+			if (currMsg.images && currMsg.images.length > 0) {
+				const content: (ImageContent | { type: 'text'; text: string })[] = [];
+				
+				// Add images first
+				for (const image of currMsg.images) {
+					content.push({
+						type: 'image',
+						source: {
+							type: 'base64',
+							media_type: image.mimeType,
+							data: image.data
+						}
+					});
+				}
+				
+				// Add text
+				if (currMsg.content) {
+					content.push({
+						type: 'text',
+						text: currMsg.content
+					});
+				}
+				
+				newMessages[i] = {
+					role: 'user',
+					content
+				};
+			} else {
+				newMessages[i] = {
+					role: 'user',
+					content: currMsg.content,
+				};
 			}
 			continue
 		}
@@ -196,7 +260,7 @@ const prepareMessages_anthropic_tools = (messages: SimpleLLMMessage[], supportsA
 }
 
 
-const prepareMessages_XML_tools = (messages: SimpleLLMMessage[], supportsAnthropicReasoning: boolean): AnthropicOrOpenAILLMMessage[] => {
+const prepareMessages_XML_tools = (messages: SimpleLLMMessage[], supportsAnthropicReasoning: boolean, providerName: ProviderName): AnthropicOrOpenAILLMMessage[] => {
 
 	const llmChatMessages: AnthropicOrOpenAILLMMessage[] = [];
 	for (let i = 0; i < messages.length; i += 1) {
@@ -226,13 +290,96 @@ const prepareMessages_XML_tools = (messages: SimpleLLMMessage[], supportsAnthrop
 			if (c.role === 'tool')
 				c.content = `<${c.name}_result>\n${c.content}\n</${c.name}_result>`
 
-			if (llmChatMessages.length === 0 || llmChatMessages[llmChatMessages.length - 1].role !== 'user')
-				llmChatMessages.push({
-					role: 'user',
-					content: c.content
-				})
-			else
-				llmChatMessages[llmChatMessages.length - 1].content += '\n\n' + c.content
+			// Handle images for user messages
+			if (c.role === 'user' && c.images && c.images.length > 0) {
+				// Use OpenAI format for openAICompatible, Anthropic format for others
+				if (providerName === 'openAICompatible' || providerName === 'openAI') {
+					// OpenAI format
+					const content: ({ type: 'text'; text: string } | OpenAIImageContent)[] = [];
+					
+					// Add text first for OpenAI
+					if (c.content) {
+						content.push({
+							type: 'text',
+							text: c.content
+						});
+					}
+					
+					// Add images
+					for (const image of c.images) {
+						content.push({
+							type: 'image_url',
+							image_url: {
+								url: `data:${image.mimeType};base64,${image.data}`
+							}
+						});
+					}
+					
+					if (llmChatMessages.length === 0 || llmChatMessages[llmChatMessages.length - 1].role !== 'user') {
+						llmChatMessages.push({
+							role: 'user',
+							content
+						});
+					} else {
+						// Merge with previous user message
+						const prevMsg = llmChatMessages[llmChatMessages.length - 1];
+						if (typeof prevMsg.content === 'string') {
+							prevMsg.content = [{ type: 'text', text: prevMsg.content }];
+						}
+						if (Array.isArray(prevMsg.content)) {
+							prevMsg.content.push(...content);
+						}
+					}
+				} else {
+					// Anthropic format
+					const imageContent: (ImageContent | { type: 'text'; text: string })[] = [];
+					
+					// Add images first
+					for (const image of c.images) {
+						imageContent.push({
+							type: 'image',
+							source: {
+								type: 'base64',
+								media_type: image.mimeType,
+								data: image.data
+							}
+						});
+					}
+					
+					// Add text
+					if (c.content) {
+						imageContent.push({
+							type: 'text',
+							text: c.content
+						});
+					}
+					
+					if (llmChatMessages.length === 0 || llmChatMessages[llmChatMessages.length - 1].role !== 'user') {
+						llmChatMessages.push({
+							role: 'user',
+							content: imageContent
+						});
+					} else {
+						// Merge with previous user message
+						const prevMsg = llmChatMessages[llmChatMessages.length - 1];
+						if (typeof prevMsg.content === 'string') {
+							prevMsg.content = [{ type: 'text', text: prevMsg.content }];
+						}
+						if (Array.isArray(prevMsg.content)) {
+							prevMsg.content.push(...imageContent);
+						}
+					}
+				}
+			} else {
+				// No images, handle as before
+				if (llmChatMessages.length === 0 || llmChatMessages[llmChatMessages.length - 1].role !== 'user')
+					llmChatMessages.push({
+						role: 'user',
+						content: c.content
+					})
+				else
+					llmChatMessages[llmChatMessages.length - 1].content += '\n\n' + c.content
+			}
 		}
 	}
 	return llmChatMessages
@@ -250,6 +397,7 @@ const prepareOpenAIOrAnthropicMessages = ({
 	supportsAnthropicReasoning,
 	contextWindow,
 	reservedOutputTokenSpace,
+	providerName,
 }: {
 	messages: SimpleLLMMessage[],
 	systemMessage: string,
@@ -259,6 +407,7 @@ const prepareOpenAIOrAnthropicMessages = ({
 	supportsAnthropicReasoning: boolean,
 	contextWindow: number,
 	reservedOutputTokenSpace: number | null | undefined,
+	providerName: ProviderName,
 }): { messages: AnthropicOrOpenAILLMMessage[], separateSystemMessage: string | undefined } => {
 
 	reservedOutputTokenSpace = Math.max(
@@ -371,7 +520,7 @@ const prepareOpenAIOrAnthropicMessages = ({
 
 	let llmChatMessages: AnthropicOrOpenAILLMMessage[] = []
 	if (!specialToolFormat) { // XML tool behavior
-		llmChatMessages = prepareMessages_XML_tools(messages as SimpleLLMMessage[], supportsAnthropicReasoning)
+		llmChatMessages = prepareMessages_XML_tools(messages as SimpleLLMMessage[], supportsAnthropicReasoning, providerName)
 	}
 	else if (specialToolFormat === 'anthropic-style') {
 		llmChatMessages = prepareMessages_anthropic_tools(messages as SimpleLLMMessage[], supportsAnthropicReasoning)
@@ -634,6 +783,7 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 				simpleLLMMessages.push({
 					role: m.role,
 					content: m.content,
+					images: m.images,
 				})
 			}
 		}

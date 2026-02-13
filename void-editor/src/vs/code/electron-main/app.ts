@@ -1416,7 +1416,8 @@ export class CodeApplication extends Disposable {
 
 		// Check for updates on startup (after window is open)
 		// This runs in the background without blocking the UI
-		this._checkForUpdatesOnStartup();
+		// DISABLED: Auto-update check temporarily disabled to prevent white screen issues
+		// this._checkForUpdatesOnStartup();
 	}
 
 	private _checkForUpdatesOnStartup(): void {

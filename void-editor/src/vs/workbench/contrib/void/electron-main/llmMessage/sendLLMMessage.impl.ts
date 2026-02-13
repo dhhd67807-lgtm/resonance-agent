@@ -370,6 +370,23 @@ const _sendOpenAICompatibleChat = async ({ messages, onText, onFinalMessage, onE
 	let toolId = ''
 	let toolParamsStr = ''
 
+	// Debug: Log the messages being sent
+	console.log('[VISION DEBUG] Sending to OpenAI-compatible API:', {
+		provider: providerName,
+		messageCount: messages.length,
+		messages: messages.map((m: any) => ({
+			role: m.role,
+			contentType: typeof m.content,
+			isArray: Array.isArray(m.content),
+			hasImages: Array.isArray(m.content) && m.content.some((c: any) => c.type === 'image_url'),
+			content: Array.isArray(m.content) ? m.content.map((c: any) => ({
+				type: c.type,
+				hasImageUrl: c.type === 'image_url' ? !!c.image_url?.url : undefined,
+				imageUrlLength: c.type === 'image_url' ? c.image_url?.url?.length : undefined
+			})) : 'string'
+		}))
+	});
+
 	// Wrap the API call with retry logic
 	retryWithExponentialBackoff(
 		() => openai.chat.completions.create(options),
@@ -563,6 +580,21 @@ const sendAnthropicChat = async ({ messages, providerName, onText, onFinalMessag
 	const anthropic = new Anthropic({
 		apiKey: thisConfig.apiKey,
 		dangerouslyAllowBrowser: true
+	});
+
+	// Debug: Log the messages being sent
+	console.log('[VISION DEBUG] Sending to Anthropic API:', {
+		messageCount: messages.length,
+		messages: messages.map((m: any) => ({
+			role: m.role,
+			contentType: typeof m.content,
+			isArray: Array.isArray(m.content),
+			hasImages: Array.isArray(m.content) && m.content.some((c: any) => c.type === 'image'),
+			content: Array.isArray(m.content) ? m.content.map((c: any) => ({
+				type: c.type,
+				hasData: c.type === 'image' ? !!c.source?.data : undefined
+			})) : 'string'
+		}))
 	});
 
 	const stream = anthropic.messages.stream({

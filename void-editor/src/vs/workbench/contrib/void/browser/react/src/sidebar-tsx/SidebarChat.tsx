@@ -24,9 +24,9 @@ import { VOID_OPEN_SETTINGS_ACTION_ID } from '../../../voidSettingsPane.js';
 import { ChatMode, displayInfoOfProviderName, FeatureName, isFeatureNameDisabled } from '../../../../../../../workbench/contrib/void/common/voidSettingsTypes.js';
 import { ICommandService } from '../../../../../../../platform/commands/common/commands.js';
 import { WarningBox } from '../void-settings-tsx/WarningBox.js';
-import { getModelCapabilities, getIsReasoningEnabledState } from '../../../../common/modelCapabilities.js';
+import { getModelCapabilities, getIsReasoningEnabledState, modelSupportsVision } from '../../../../common/modelCapabilities.js';
 import { AlertTriangle, File, Ban, Check, ChevronRight, Dot, FileIcon, Pencil, Undo, Undo2, X, Flag, Copy as CopyIcon, Info, CirclePlus, Ellipsis, CircleEllipsis, Folder, ALargeSmall, TypeOutline, Text, Eye, Search, FilePlus, Trash2, Terminal, FileEdit, Bug } from 'lucide-react';
-import { ChatMessage, CheckpointEntry, StagingSelectionItem, ToolMessage } from '../../../../common/chatThreadServiceTypes.js';
+import { ChatMessage, CheckpointEntry, StagingSelectionItem, ToolMessage, ImageAttachment } from '../../../../common/chatThreadServiceTypes.js';
 import { approvalTypeOfBuiltinToolName, BuiltinToolCallParams, BuiltinToolName, ToolName, LintErrorItem, ToolApprovalType, toolApprovalTypes } from '../../../../common/toolsServiceTypes.js';
 import { CopyButton, EditToolAcceptRejectButtonsHTML, IconShell1, JumpToFileButton, JumpToTerminalButton, StatusIndicator, StatusIndicatorForApplyButton, useApplyStreamState, useEditToolStreamState } from '../markdown/ApplyBlockHoverButtons.js';
 import { IsRunningType } from '../../../chatThreadService.js';
@@ -301,6 +301,94 @@ const detailOfChatMode = {
 }
 
 
+// Image Upload Button Component
+const ImageUploadButton = ({ onImageSelect, disabled }: { 
+	onImageSelect: (files: File[]) => void;
+	disabled: boolean;
+}) => {
+	const fileInputRef = useRef<HTMLInputElement>(null);
+	
+	return (
+		<>
+			<input
+				ref={fileInputRef}
+				type="file"
+				accept="image/*"
+				multiple
+				style={{ display: 'none' }}
+				onChange={(e) => {
+					if (e.target.files) {
+						onImageSelect(Array.from(e.target.files));
+						// Reset input so same file can be selected again
+						e.target.value = '';
+					}
+				}}
+			/>
+			<button
+				type="button"
+				onClick={() => fileInputRef.current?.click()}
+				disabled={disabled}
+				className={`
+					p-1 rounded
+					${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-void-bg-2'}
+					transition-colors
+				`}
+				data-tooltip-id='void-tooltip'
+				data-tooltip-content='Attach images'
+				data-tooltip-place='top'
+			>
+				<FileIcon size={16} className="text-void-fg-3" />
+			</button>
+		</>
+	);
+};
+
+// Image Preview Component
+const ImagePreview = ({ image, onRemove }: {
+	image: ImageAttachment;
+	onRemove: () => void;
+}) => {
+	return (
+		<div className="relative w-20 h-20 rounded border border-void-border-1 overflow-hidden group">
+			<img 
+				src={image.dataUrl} 
+				alt={image.name}
+				className="w-full h-full object-cover"
+			/>
+			<button
+				onClick={onRemove}
+				className="absolute top-0.5 right-0.5 bg-black bg-opacity-70 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+			>
+				<X size={12} className="text-white" />
+			</button>
+			<div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 px-1 py-0.5">
+				<span className="text-white text-[9px] truncate block">{image.name}</span>
+			</div>
+		</div>
+	);
+};
+
+// Image Attachments Container
+const ImageAttachmentsContainer = ({ images, onRemove }: {
+	images: ImageAttachment[];
+	onRemove: (id: string) => void;
+}) => {
+	if (images.length === 0) return null;
+	
+	return (
+		<div className="flex flex-wrap gap-2 pb-1">
+			{images.map(image => (
+				<ImagePreview
+					key={image.id}
+					image={image}
+					onRemove={() => onRemove(image.id)}
+				/>
+			))}
+		</div>
+	);
+};
+
+
 const ChatModeDropdown = ({ className }: { className: string }) => {
 	const accessor = useAccessor()
 
@@ -350,8 +438,11 @@ interface VoidChatAreaProps {
 
 	selections?: StagingSelectionItem[]
 	setSelections?: (s: StagingSelectionItem[]) => void
-	// selections?: any[];
-	// onSelectionsChange?: (selections: any[]) => void;
+	
+	// Image attachments
+	images?: ImageAttachment[];
+	setImages?: (images: ImageAttachment[]) => void;
+	showImageUpload?: boolean;
 
 	onClickAnywhere?: () => void;
 	// Optional close button
@@ -375,9 +466,67 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
 	showProspectiveSelections = false,
 	selections,
 	setSelections,
+	images,
+	setImages,
+	showImageUpload = false,
 	featureName,
 	loadingIcon,
 }) => {
+	const accessor = useAccessor();
+	const settingsState = useSettingsState();
+	
+	// Check if current model supports vision
+	const modelSelection = settingsState.modelSelectionOfFeature[featureName];
+	const supportsVision = modelSelection ? 
+		modelSupportsVision(modelSelection.providerName, modelSelection.modelName, settingsState.overridesOfModel) : 
+		false;
+	
+	const handleImageUpload = async (files: File[]) => {
+		if (!setImages) return;
+		
+		const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+		const newImages: ImageAttachment[] = [];
+		
+		for (const file of files) {
+			if (file.size > MAX_IMAGE_SIZE) {
+				console.warn(`Image ${file.name} is too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum size is 5MB.`);
+				continue;
+			}
+			
+			if (!file.type.startsWith('image/')) {
+				console.warn(`File ${file.name} is not an image.`);
+				continue;
+			}
+			
+			try {
+				const arrayBuffer = await file.arrayBuffer();
+				const uint8Array = new Uint8Array(arrayBuffer);
+				const base64 = btoa(String.fromCharCode(...uint8Array));
+				const dataUrl = `data:${file.type};base64,${base64}`;
+				
+				newImages.push({
+					id: `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+					name: file.name,
+					mimeType: file.type as ImageAttachment['mimeType'],
+					data: base64,
+					dataUrl,
+					size: file.size
+				});
+			} catch (error) {
+				console.error(`Failed to process image ${file.name}:`, error);
+			}
+		}
+		
+		if (newImages.length > 0) {
+			setImages([...(images || []), ...newImages]);
+		}
+	};
+	
+	const handleRemoveImage = (id: string) => {
+		if (!setImages || !images) return;
+		setImages(images.filter(img => img.id !== id));
+	};
+	
 	return (
 		<div
 			ref={divRef}
@@ -402,6 +551,14 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
 					selections={selections}
 					setSelections={setSelections}
 					showProspectiveSelections={showProspectiveSelections}
+				/>
+			)}
+			
+			{/* Image attachments section */}
+			{images && images.length > 0 && (
+				<ImageAttachmentsContainer
+					images={images}
+					onRemove={handleRemoveImage}
 				/>
 			)}
 
@@ -433,6 +590,13 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
 				)}
 
 				<div className="flex items-center gap-2">
+					{/* Image upload button - only show if enabled and model supports vision */}
+					{showImageUpload && supportsVision && setImages && (
+						<ImageUploadButton
+							onImageSelect={handleImageUpload}
+							disabled={isStreaming}
+						/>
+					)}
 
 					{isStreaming && loadingIcon}
 
@@ -1340,6 +1504,30 @@ const UserMessageComponent = ({ chatMessage, messageIdx, isCheckpointGhost, curr
 	if (mode === 'display') {
 		chatbubbleContents = <>
 			<SelectedFiles type='past' messageIdx={messageIdx} selections={chatMessage.selections || []} />
+			{/* Display attached images */}
+			{chatMessage.images && chatMessage.images.length > 0 && (
+				<div className="flex flex-wrap gap-2 pb-2">
+					{chatMessage.images.map(image => (
+						<div key={image.id} className="relative w-32 h-32 rounded border border-void-border-1 overflow-hidden">
+							<img 
+								src={image.dataUrl} 
+								alt={image.name}
+								className="w-full h-full object-cover cursor-pointer"
+								onClick={() => {
+									// Open image in new window for full view
+									const win = window.open();
+									if (win) {
+										win.document.write(`<img src="${image.dataUrl}" style="max-width:100%; max-height:100vh;" />`);
+									}
+								}}
+							/>
+							<div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 px-1 py-0.5">
+								<span className="text-white text-[9px] truncate block">{image.name}</span>
+							</div>
+						</div>
+					))}
+				</div>
+			)}
 			<span className='px-0.5'>{chatMessage.displayContent}</span>
 		</>
 	}
@@ -3574,6 +3762,9 @@ export const SidebarChat = () => {
 	const selections = currentThread.state.stagingSelections
 	const setSelections = (s: StagingSelectionItem[]) => { chatThreadsService.setCurrentThreadState({ stagingSelections: s }) }
 
+	// Image attachments state
+	const [images, setImages] = useState<ImageAttachment[]>([]);
+
 	// stream state
 	const currThreadStreamState = useChatThreadsStreamState(chatThreadsState.currentThreadId)
 	const isRunning = currThreadStreamState?.isRunning
@@ -3630,16 +3821,21 @@ export const SidebarChat = () => {
 		const userMessage = _forceSubmit || textAreaRef.current?.value || ''
 
 		try {
-			await chatThreadsService.addUserMessageAndStreamResponse({ userMessage, threadId })
+			await chatThreadsService.addUserMessageAndStreamResponse({ 
+				userMessage, 
+				threadId,
+				images: images.length > 0 ? images : undefined
+			})
 		} catch (e) {
 			console.error('Error while sending message in chat:', e)
 		}
 
 		setSelections([]) // clear staging
+		setImages([]) // clear images
 		textAreaFnsRef.current?.setValue('')
 		textAreaRef.current?.focus() // focus input after submit
 
-	}, [chatThreadsService, isDisabled, isRunning, textAreaRef, textAreaFnsRef, setSelections, settingsState])
+	}, [chatThreadsService, isDisabled, isRunning, textAreaRef, textAreaFnsRef, setSelections, images, settingsState])
 
 	const onAbort = async () => {
 		const threadId = currentThread.id
@@ -3775,6 +3971,9 @@ export const SidebarChat = () => {
 		// showProspectiveSelections={previousMessagesHTML.length === 0}
 		selections={selections}
 		setSelections={setSelections}
+		images={images}
+		setImages={setImages}
+		showImageUpload={true}
 		onClickAnywhere={() => { textAreaRef.current?.focus() }}
 	>
 		<VoidInputBox2

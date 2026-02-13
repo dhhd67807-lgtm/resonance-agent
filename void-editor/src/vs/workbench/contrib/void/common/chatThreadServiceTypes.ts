@@ -46,6 +46,16 @@ export type CheckpointEntry = {
 }
 
 
+// Image attachment type
+export type ImageAttachment = {
+	id: string;
+	name: string;
+	mimeType: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+	data: string; // base64 encoded
+	dataUrl: string; // for preview (data:image/...;base64,...)
+	size: number;
+};
+
 // WARNING: changing this format is a big deal!!!!!! need to migrate old format to new format on users' computers so people don't get errors.
 export type ChatMessage =
 	| {
@@ -53,6 +63,7 @@ export type ChatMessage =
 		content: string; // content displayed to the LLM on future calls - allowed to be '', will be replaced with (empty)
 		displayContent: string; // content displayed to user  - allowed to be '', will be ignored
 		selections: StagingSelectionItem[] | null; // the user's selection
+		images?: ImageAttachment[]; // attached images
 		state: {
 			stagingSelections: StagingSelectionItem[];
 			isBeingEdited: boolean;

@@ -123,6 +123,7 @@ export type VoidStaticModelInfo = { // not stateful
 	supportsSystemMessage: false | 'system-role' | 'developer-role' | 'separated'; // typically you should use 'system-role'. 'separated' means the system message is passed as a separate field (e.g. anthropic)
 	specialToolFormat?: 'openai-style' | 'anthropic-style' | 'gemini-style', // typically you should use 'openai-style'. null means "can't call tools by default", and asks the LLM to output XML in agent mode
 	supportsFIM: boolean; // whether the model was specifically designed for autocomplete or "FIM" ("fill-in-middle" format)
+	supportsVision?: boolean; // whether the model supports image inputs
 
 	additionalOpenAIPayload?: { [key: string]: string } // additional payload in the message body for requests that are openai-compatible (ollama, vllm, openai, openrouter, etc)
 
@@ -342,7 +343,7 @@ const openSourceModelOptions_assumingOAICompat = {
 	'minimax-m2.1': { // NVIDIA MiniMax M2.1
 		supportsFIM: false,
 		supportsSystemMessage: 'system-role',
-		specialToolFormat: 'openai-style',
+		specialToolFormat: 'openai-style', // Use OpenAI-style native tool calling
 		reasoningCapabilities: { 
 			supportsReasoning: true, 
 			canTurnOffReasoning: false, 
@@ -350,7 +351,7 @@ const openSourceModelOptions_assumingOAICompat = {
 			openSourceThinkTags: ['<think>', '</think>'] 
 		},
 		contextWindow: 200_000, 
-		reservedOutputTokenSpace: 8_192,
+		reservedOutputTokenSpace: 32_000, // Increased for longer responses
 	},
 	'kimi-k2-5': { // NVIDIA Kimi K2.5 (Moonshot AI)
 		supportsFIM: false,
@@ -370,15 +371,17 @@ const openSourceModelOptions_assumingOAICompat = {
 		supportsFIM: false,
 		supportsSystemMessage: 'system-role',
 		specialToolFormat: 'openai-style',
+		supportsVision: true,
 		reasoningCapabilities: false,
-		contextWindow: 200_000, reservedOutputTokenSpace: 8_192,
+		contextWindow: 200_000, reservedOutputTokenSpace: 16_384,
 	},
 	'claude-4-opus': { // Claude 4 Opus via OpenAI-compatible API
 		supportsFIM: false,
 		supportsSystemMessage: 'system-role',
 		specialToolFormat: 'openai-style',
+		supportsVision: true,
 		reasoningCapabilities: false,
-		contextWindow: 200_000, reservedOutputTokenSpace: 8_192,
+		contextWindow: 200_000, reservedOutputTokenSpace: 16_384,
 	}
 } as const satisfies { [s: string]: Partial<VoidStaticModelInfo> }
 
@@ -480,81 +483,87 @@ const extensiveModelOptionsFallback: VoidStaticProviderInfo['modelOptionsFallbac
 const anthropicModelOptions = {
 	'claude-3-7-sonnet-20250219': { // https://docs.anthropic.com/en/docs/about-claude/models/all-models#model-comparison-table
 		contextWindow: 200_000,
-		reservedOutputTokenSpace: 8_192,
+		reservedOutputTokenSpace: 16_384,
 		cost: { input: 3.00, cache_read: 0.30, cache_write: 3.75, output: 15.00 },
 		downloadable: false,
 		supportsFIM: false,
+		supportsVision: true,
 		specialToolFormat: 'anthropic-style',
 		supportsSystemMessage: 'separated',
 		reasoningCapabilities: {
 			supportsReasoning: true,
 			canTurnOffReasoning: true,
 			canIOReasoning: true,
-			reasoningReservedOutputTokenSpace: 8192, // can bump it to 128_000 with beta mode output-128k-2025-02-19
+			reasoningReservedOutputTokenSpace: 16_384,
 			reasoningSlider: { type: 'budget_slider', min: 1024, max: 8192, default: 1024 }, // they recommend batching if max > 32_000. we cap at 8192 because above is typically not necessary (often even buggy)
 		},
 
 	},
 	'claude-opus-4-20250514': {
 		contextWindow: 200_000,
-		reservedOutputTokenSpace: 8_192,
+		reservedOutputTokenSpace: 16_384,
 		cost: { input: 15.00, cache_read: 1.50, cache_write: 18.75, output: 30.00 },
 		downloadable: false,
 		supportsFIM: false,
+		supportsVision: true,
 		specialToolFormat: 'anthropic-style',
 		supportsSystemMessage: 'separated',
 		reasoningCapabilities: {
 			supportsReasoning: true,
 			canTurnOffReasoning: true,
 			canIOReasoning: true,
-			reasoningReservedOutputTokenSpace: 8192, // can bump it to 128_000 with beta mode output-128k-2025-02-19
+			reasoningReservedOutputTokenSpace: 16_384,
 			reasoningSlider: { type: 'budget_slider', min: 1024, max: 8192, default: 1024 }, // they recommend batching if max > 32_000. we cap at 8192 because above is typically not necessary (often even buggy)
 		},
 
 	},
 	'claude-sonnet-4-20250514': {
 		contextWindow: 200_000,
-		reservedOutputTokenSpace: 8_192,
+		reservedOutputTokenSpace: 16_384,
 		cost: { input: 3.00, cache_read: 0.30, cache_write: 3.75, output: 6.00 },
 		downloadable: false,
 		supportsFIM: false,
+		supportsVision: true,
 		specialToolFormat: 'anthropic-style',
 		supportsSystemMessage: 'separated',
 		reasoningCapabilities: {
 			supportsReasoning: true,
 			canTurnOffReasoning: true,
 			canIOReasoning: true,
-			reasoningReservedOutputTokenSpace: 8192, // can bump it to 128_000 with beta mode output-128k-2025-02-19
+			reasoningReservedOutputTokenSpace: 16_384,
 			reasoningSlider: { type: 'budget_slider', min: 1024, max: 8192, default: 1024 }, // they recommend batching if max > 32_000. we cap at 8192 because above is typically not necessary (often even buggy)
 		},
 
 	},
 	'claude-3-5-sonnet-20241022': {
 		contextWindow: 200_000,
-		reservedOutputTokenSpace: 8_192,
+		reservedOutputTokenSpace: 16_384,
 		cost: { input: 3.00, cache_read: 0.30, cache_write: 3.75, output: 15.00 },
 		downloadable: false,
 		supportsFIM: false,
+		supportsVision: true,
 		specialToolFormat: 'anthropic-style',
 		supportsSystemMessage: 'separated',
 		reasoningCapabilities: false,
 	},
 	'claude-3-5-haiku-20241022': {
 		contextWindow: 200_000,
-		reservedOutputTokenSpace: 8_192,
+		reservedOutputTokenSpace: 16_384,
 		cost: { input: 0.80, cache_read: 0.08, cache_write: 1.00, output: 4.00 },
 		downloadable: false,
 		supportsFIM: false,
+		supportsVision: true,
 		specialToolFormat: 'anthropic-style',
 		supportsSystemMessage: 'separated',
 		reasoningCapabilities: false,
 	},
 	'claude-3-opus-20240229': {
 		contextWindow: 200_000,
-		reservedOutputTokenSpace: 4_096,
+		reservedOutputTokenSpace: 16_384,
 		cost: { input: 15.00, cache_read: 1.50, cache_write: 18.75, output: 75.00 },
 		downloadable: false,
 		supportsFIM: false,
+		supportsVision: true,
 		specialToolFormat: 'anthropic-style',
 		supportsSystemMessage: 'separated',
 		reasoningCapabilities: false,
@@ -562,7 +571,7 @@ const anthropicModelOptions = {
 	'claude-3-sonnet-20240229': { // no point of using this, but including this for people who put it in
 		contextWindow: 200_000, cost: { input: 3.00, output: 15.00 },
 		downloadable: false,
-		reservedOutputTokenSpace: 4_096,
+		reservedOutputTokenSpace: 16_384,
 		supportsFIM: false,
 		specialToolFormat: 'anthropic-style',
 		supportsSystemMessage: 'separated',
@@ -1616,4 +1625,10 @@ export const getSendableReasoningInfo = (
 	}
 
 	return null
+}
+
+// check if a model supports vision/image inputs
+export const modelSupportsVision = (providerName: ProviderName, modelName: string, overridesOfModel: OverridesOfModel | undefined): boolean => {
+	const capabilities = getModelCapabilities(providerName, modelName, overridesOfModel);
+	return capabilities.supportsVision ?? false;
 }
