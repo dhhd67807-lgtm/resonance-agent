@@ -42,6 +42,7 @@ jobs:
         env:
           SHELL: /bin/bash
           npm_config_shell: /bin/bash
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
         shell: bash
       
@@ -129,6 +130,7 @@ jobs:
         env:
           SHELL: /bin/bash
           npm_config_shell: /bin/bash
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
         shell: bash
       
