@@ -1062,16 +1062,16 @@ const ToolHeaderWrapper = ({
 	const isShortFilename = desc1 && !isSearchQuery;
 
 	return (<div className='flex flex-col gap-y-0'>
-		{/* Clean minimal tool header with vibrant pink-purple-orange gradient */}
+		{/* Clean minimal tool header with white-to-pink gradient */}
 		<div 
 			className={`w-full flex flex-col transition-all duration-200
 				${isClickable ? 'cursor-pointer hover:opacity-95' : ''}
 			`}
 			style={{
-				background: 'linear-gradient(135deg, #FFE5F0 0%, #F3E5FF 40%, #FFE8D9 100%)',
+				background: 'linear-gradient(135deg, #FFFFFF 0%, #FFE5F0 100%)',
 				border: '1px solid rgba(255, 200, 230, 0.3)',
 				borderRadius: children ? '8px 8px 0 0' : '8px',
-				boxShadow: 'inset 0 1px 3px rgba(255, 105, 180, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.6)',
+				boxShadow: 'inset 0 1px 3px rgba(255, 105, 180, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.6)',
 			}}
 			onClick={() => {
 				if (onClick) { onClick(); }
