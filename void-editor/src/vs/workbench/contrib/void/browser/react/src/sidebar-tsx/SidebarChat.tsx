@@ -1062,13 +1062,13 @@ const ToolHeaderWrapper = ({
 	const isShortFilename = desc1 && !isSearchQuery;
 
 	return (<div className='flex flex-col gap-y-0'>
-		{/* Clean minimal tool header - Trae-style white theme */}
+		{/* Clean minimal tool header - Trae-style white theme with gradient */}
 		<div 
 			className={`w-full flex flex-col transition-all duration-200
 				${isClickable ? 'cursor-pointer hover:bg-[rgba(0,0,0,0.015)]' : ''}
 			`}
 			style={{
-				background: '#FFFFFF',
+				background: 'linear-gradient(135deg, #FFFFFF 0%, #F8F9FA 50%, #F0F2F5 100%)',
 				border: '1px solid #E8E8E8',
 				borderRadius: children ? '8px 8px 0 0' : '8px',
 				boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.5)',
