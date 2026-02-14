@@ -208,20 +208,23 @@ class VoidUpdateWorkbenchContribution extends Disposable implements IWorkbenchCo
 	) {
 		super()
 
-		const autoCheck = () => {
-			performVoidCheck(false, notifService, voidUpdateService, metricsService, updateService)
-		}
+		// DISABLED: Auto-update checks disabled to prevent startup issues
+		// Users can still manually check for updates via Command Palette: "Resonance: Check for Updates"
+		
+		// const autoCheck = () => {
+		// 	performVoidCheck(false, notifService, voidUpdateService, metricsService, updateService)
+		// }
 
-		// check once 5 seconds after mount
-		// check every 3 hours
-		const { window } = dom.getActiveWindow()
+		// // check once 5 seconds after mount
+		// // check every 3 hours
+		// const { window } = dom.getActiveWindow()
 
-		const initId = window.setTimeout(() => autoCheck(), 5 * 1000)
-		this._register({ dispose: () => window.clearTimeout(initId) })
+		// const initId = window.setTimeout(() => autoCheck(), 5 * 1000)
+		// this._register({ dispose: () => window.clearTimeout(initId) })
 
 
-		const intervalId = window.setInterval(() => autoCheck(), 3 * 60 * 60 * 1000) // every 3 hrs
-		this._register({ dispose: () => window.clearInterval(intervalId) })
+		// const intervalId = window.setInterval(() => autoCheck(), 3 * 60 * 60 * 1000) // every 3 hrs
+		// this._register({ dispose: () => window.clearInterval(intervalId) })
 
 	}
 }
